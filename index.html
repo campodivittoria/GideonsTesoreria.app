@@ -152,7 +152,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '2.4'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '2.5'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -515,19 +515,25 @@ function vNota() {
 function vImpostazioni() {
   const u = users();
   $('#view').innerHTML = `<div class="card">
-    <h2>Account amministratore</h2>
-    <p class="muted">Qui cambi nome utente e password dell'amministratore. L'utente generico (<b>${esc(u.user.name)}</b>) non si può modificare.</p>
-    <p class="muted">Le modifiche valgono per <b>questo dispositivo</b>: se cambi la password qui, dovrai cambiarla allo stesso modo sugli altri dispositivi dove si usa l'app.</p>
+    <h2>Utenti e password</h2>
+    <p class="muted">Le modifiche valgono per <b>questo dispositivo</b>: l'app salva tutto sul telefono o computer in uso. Se cambi una password qui, dovrai cambiarla allo stesso modo sugli altri dispositivi dove si usa l'app.</p>
     <form id="uf">
+      <h3 style="font-size:1rem;margin:16px 0 8px">Utente generico (tesoriere)</h3>
       <div class="grid">
-        <div><label>Nome utente amministratore</label><input id="an" value="${esc(u.admin.name)}" autocomplete="off" required></div>
+        <div><label>Nome utente</label><input id="un" value="${esc(u.user.name)}" autocomplete="off" required></div>
+        <div><label>Nuova password <span class="muted">(vuoto = non cambiare)</span></label><input id="up" type="password" autocomplete="new-password"></div>
+        <div><label>Ripeti la nuova password</label><input id="up2" type="password" autocomplete="new-password"></div>
+      </div>
+      <h3 style="font-size:1rem;margin:20px 0 8px">Amministratore</h3>
+      <div class="grid">
+        <div><label>Nome utente</label><input id="an" value="${esc(u.admin.name)}" autocomplete="off" required></div>
         <div><label>Nuova password <span class="muted">(vuoto = non cambiare)</span></label><input id="ap" type="password" autocomplete="new-password"></div>
         <div><label>Ripeti la nuova password</label><input id="ap2" type="password" autocomplete="new-password"></div>
       </div>
       <h3 style="font-size:1rem;margin:20px 0 8px">Conferma</h3>
       <div class="grid"><div><label>Password attuale dell'amministratore</label><input id="cp" type="password" autocomplete="current-password" required></div></div>
       <div id="umsg" class="msg err"></div>
-      <div class="actions" style="justify-content:flex-start"><button class="primary">Salva</button><button type="button" class="small" id="uReset">Ripristina quello iniziale</button></div>
+      <div class="actions" style="justify-content:flex-start"><button class="primary">Salva</button><button type="button" class="small" id="uReset">Ripristina quelli iniziali</button></div>
     </form>
   </div>`;
   const msg = (t, ok) => { const m = $('#umsg'); m.className = 'msg ' + (ok ? 'ok' : 'err'); m.textContent = t; };
@@ -541,16 +547,18 @@ function vImpostazioni() {
   $('#uf').onsubmit = ev => {
     ev.preventDefault();
     if ($('#cp').value !== u.admin.pw) return msg('La password attuale dell’amministratore non è corretta.');
+    const un = $('#un').value.trim(), up = $('#up').value, up2 = $('#up2').value;
     const an = $('#an').value.trim(), ap = $('#ap').value, ap2 = $('#ap2').value;
-    if (!an) return msg('Il nome utente non può essere vuoto.');
-    if (an === u.user.name) return msg(`“${u.user.name}” è il nome dell’utente generico: scegline un altro.`);
-    if (ap && ap.length < 4) return msg('La password deve avere almeno 4 caratteri.');
-    if (ap !== ap2) return msg('Le due password nuove non coincidono.');
-    persist({ user: DEFAULT_USERS.user, admin: { name: an, pw: ap || u.admin.pw } });
+    if (!un || !an) return msg('I nomi utente non possono essere vuoti.');
+    if (un === an) return msg('I due nomi utente devono essere diversi.');
+    if ((up && up.length < 4) || (ap && ap.length < 4)) return msg('Le password devono avere almeno 4 caratteri.');
+    if (up !== up2) return msg('Le due password nuove dell’utente generico non coincidono.');
+    if (ap !== ap2) return msg('Le due password nuove dell’amministratore non coincidono.');
+    persist({ user: { name: un, pw: up || u.user.pw }, admin: { name: an, pw: ap || u.admin.pw } });
   };
   $('#uReset').onclick = () => {
     if ($('#cp').value !== u.admin.pw) return msg('Inserisci la password attuale dell’amministratore per confermare.');
-    if (!confirm('Ripristinare nome utente e password iniziali dell’amministratore?')) return;
+    if (!confirm('Ripristinare gli utenti e le password iniziali?')) return;
     persist(JSON.parse(JSON.stringify(DEFAULT_USERS)));
   };
 }
