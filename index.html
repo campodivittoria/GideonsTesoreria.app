@@ -162,7 +162,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '3.3'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '3.4'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -255,22 +255,22 @@ function demoData() {
   for (let i = 0; i < 100; i++) {
     const day = new Date(start); day.setDate(day.getDate() + Math.floor(i * 7.3 + rnd() * 5));
     const date = day.toISOString().slice(0, 10);
-    const items = { [PRO]: amt(2, 12) };
-    if (rnd() < .8) items['Offerte Gedeoni'] = amt(7, 34);
-    if (rnd() < .6) items['Offerte Ausiliarie'] = amt(4, 14);
-    if (rnd() < .5) items['PWT Gedeoni'] = amt(4, 14);
-    if (rnd() < .35) items['PWT Ausiliarie'] = amt(2, 9);
-    if (rnd() < .25) items['Fondo Barnaba Gedeoni'] = amt(1, 7);
-    if (rnd() < .15) items['Fondo Barnaba Ausiliarie'] = amt(1, 6);
-    if (rnd() < .4) items['Offerte delle Chiese'] = amt(2, 10);
-    if (rnd() < .2) items['Offerte Amico dei Gedeoni'] = amt(2, 18);
-    if (rnd() < .3) items['Gideons Card'] = amt(1, 7);
-    if (rnd() < .12) items['Offerte per la Convention'] = amt(3, 14);
-    if (rnd() < .1) items['Offerte nuovi Gedeoni'] = amt(6, 12);
-    if (rnd() < .08) items['Offerte nuovi Ausiliarie'] = amt(4, 7);
-    if (rnd() < .23) items['Quota annua Gedeoni'] = 38 * (rnd() < .85 ? 1 : 2); // 38 € a Gedeone
-    if (rnd() < .2) items['Quota annua Ausiliarie'] = 9 * (1 + Math.floor(rnd() * 3)); // 9 € ad Ausiliaria
-    if (rnd() < .3) items[SPESE] = amt(1, Math.min(14, items[PRO]));
+    const items = { [PRO]: amt(3, 20) };
+    if (rnd() < .8) items['Offerte Gedeoni'] = amt(12, 58);
+    if (rnd() < .6) items['Offerte Ausiliarie'] = amt(7, 24);
+    if (rnd() < .5) items['PWT Gedeoni'] = amt(7, 24);
+    if (rnd() < .35) items['PWT Ausiliarie'] = amt(3, 15);
+    if (rnd() < .25) items['Fondo Barnaba Gedeoni'] = amt(2, 12);
+    if (rnd() < .15) items['Fondo Barnaba Ausiliarie'] = amt(2, 10);
+    if (rnd() < .4) items['Offerte delle Chiese'] = amt(3, 17);
+    if (rnd() < .2) items['Offerte Amico dei Gedeoni'] = amt(3, 31);
+    if (rnd() < .3) items['Gideons Card'] = amt(2, 12);
+    if (rnd() < .12) items['Offerte per la Convention'] = amt(5, 24);
+    if (rnd() < .1) items['Offerte nuovi Gedeoni'] = amt(10, 20);
+    if (rnd() < .08) items['Offerte nuovi Ausiliarie'] = amt(7, 12);
+    if (rnd() < .27) items['Quota annua Gedeoni'] = 38 * (rnd() < .75 ? 1 : 2); // 38 € a Gedeone
+    if (rnd() < .25) items['Quota annua Ausiliarie'] = 9 * (1 + Math.floor(rnd() * 3)); // 9 € ad Ausiliaria
+    if (rnd() < .3) items[SPESE] = amt(2, Math.min(24, items[PRO]));
     d.regs.push({ id: d.seq++, date, place: pick(PLACES), items, by: 'test' });
   }
   // una chiusura di cassa a fine 2024 e una a fine 2025: toglie circa il 90% di ogni conto

@@ -3,6 +3,10 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 3.4 – 21/10/2026
+- Dati di prova: cassa attuale portata a circa 3.800 € (offerte scalate, quote più frequenti ma
+  sempre multiple di 38 e 9 €). Proporzioni invariate: Offerte ≈ 40%, quote ≈ 20%, PWT ≈ 10%.
+
 ## 3.3 – 21/10/2026
 - Dati di prova: le quote annue sono multipli esatti di 38 € (un Gedeone) e di 9 € (un'Ausiliaria),
   cioè 38 o 76 € e 9, 18 o 27 €. Offerte ridotte di conseguenza: quote ≈ 20%, Offerte ≈ 40%,
