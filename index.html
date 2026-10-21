@@ -85,6 +85,23 @@
   table.compact tr.spese td { color:var(--bad); }
   table.compact .zero { color:#aab3bf; }
   @media (max-width:420px) { table.compact th, table.compact td { font-size:.72rem; padding:6px 2px; } table.compact td:first-child { font-size:.74rem; } }
+  /* storico registrazioni: linea del tempo */
+  h3.month { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:18px 0 6px; }
+  h3.month:first-of-type { margin-top:6px; }
+  ol.timeline { list-style:none; margin:0; padding:0 0 0 18px; border-left:2px solid var(--line); }
+  ol.timeline li { position:relative; margin:0 0 8px; }
+  ol.timeline li::before { content:""; position:absolute; left:-24px; top:16px; width:10px; height:10px; border-radius:50%; background:var(--brand); border:2px solid #fff; box-shadow:0 0 0 1px var(--line); }
+  ol.timeline li.cl::before { background:var(--bad); }
+  button.tl { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 12px; cursor:pointer; font:inherit; color:var(--ink); }
+  button.tl:hover, button.tl:active { background:#eef3fa; border-color:#b9c7da; }
+  button.tl .day { flex:none; width:34px; height:34px; border-radius:8px; background:#e6ecf5; color:var(--brand); font-weight:700; display:flex; align-items:center; justify-content:center; font-size:.95rem; }
+  li.cl button.tl .day { background:#fbe9e7; color:var(--bad); }
+  button.tl .what { flex:1; min-width:0; display:flex; flex-direction:column; }
+  button.tl .what b { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  button.tl .what small { color:var(--muted); font-size:.78rem; }
+  button.tl .amt { font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  li.cl button.tl .amt { color:var(--bad); }
+  .tl-total { display:flex; justify-content:space-between; border-top:2px solid var(--ink); margin-top:14px; padding-top:10px; font-size:1rem; }
   #login { max-width:360px; margin:12vh auto; }
   #updBar { position:fixed; left:12px; right:12px; bottom:12px; z-index:30; background:var(--ok); color:#fff; padding:12px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:.95rem; }
   #updBar button { background:#fff; color:var(--ok); border:0; border-radius:6px; padding:8px 14px; font-weight:700; cursor:pointer; font-size:.95rem; }
@@ -119,7 +136,7 @@
     <div class="brand"><img src="icon.svg" alt="" width="44" height="44" style="border-radius:10px"><div><b>Tesoreria</b><span>Campo Gedeoni</span></div></div>
     <button data-v="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/></svg>Riepilogo</button>
     <button data-v="rendiconto"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20v-8M11 20V6M16 20v-5M21 20V9"/></svg>Rendiconto del Campo</button>
-    <button data-v="nota"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Registrazione Prima Nota</button>
+    <button data-v="nota"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Storico Registrazioni</button>
     <button data-v="chiusura"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg>Chiusura Cassa Annua</button>
     <div class="spacer"></div>
     <div class="user" id="who"></div>
@@ -134,7 +151,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '2.1'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '2.2'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -234,7 +251,7 @@ $('#logout').onclick = () => { closeMenu(); session = null; try { localStorage.r
 $('#nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { go(b.dataset.v); closeMenu(); } });
 
 /* ---------- menu a tendina ---------- */
-const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', nota: 'Registrazione Prima Nota', chiusura: 'Chiusura Cassa Annua' };
+const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', nota: 'Storico Registrazioni', chiusura: 'Chiusura Cassa Annua' };
 function openMenu() { document.body.classList.add('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'true'); }
 function closeMenu() { document.body.classList.remove('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'false'); }
 $('#menuBtn').onclick = () => document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
@@ -395,13 +412,23 @@ function dettaglio(account) {
 function vNota() {
   const list = [...db.regs.map(r => ({ t: 'reg', d: r.date, id: r.id, o: r })), ...db.closings.map(c => ({ t: 'cl', d: c.date, id: c.id, o: c }))]
     .sort((x, y) => y.d.localeCompare(x.d) || y.id - x.id);
-  $('#view').innerHTML = `<div class="card"><h2>Registrazione Prima Nota</h2>
-    ${list.length ? `<table><thead><tr><th>Registrazione</th><th>Luogo</th><th class="num">Totale</th></tr></thead><tbody>
-    ${list.map(x => x.t === 'reg'
-      ? `<tr><td><button class="link" data-reg="${x.id}">Registrazione del ${fdate(x.d)}</button></td><td>${esc(x.o.place)}</td><td class="num">${eur(regNet(x.o))}</td></tr>`
-      : `<tr><td><button class="link" data-cl="${x.id}">Chiusura cassa del ${fdate(x.d)}</button></td><td class="muted">${esc(x.o.bank)}</td><td class="num">−${eur(x.o.total)}</td></tr>`).join('')}
-    </tbody><tfoot><tr class="grand"><td colspan="2">Totale cassa del campo</td><td class="num">${eur(total(balances().b))}</td></tr></tfoot></table>`
-    : '<p class="muted">Nessuna registrazione ancora.</p>'}</div>`;
+  const MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  const mese = d => { const [y, m] = d.split('-'); return MESI[+m - 1] + ' ' + y; };
+  const giorno = d => d.split('-')[2];
+  // raggruppa per mese (la lista è già in ordine dal più recente)
+  const groups = [];
+  for (const x of list) { const k = x.d.slice(0, 7); if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, label: mese(x.d), items: [] }); groups[groups.length - 1].items.push(x); }
+  const first = list.length ? list[list.length - 1].d : null;
+  $('#view').innerHTML = `<div class="card">
+    <h2>Storico Registrazioni</h2>
+    <p class="muted">${list.length ? `${db.regs.length} registrazion${db.regs.length === 1 ? 'e' : 'i'}${db.closings.length ? ` e ${db.closings.length} chiusur${db.closings.length === 1 ? 'a' : 'e'} di cassa` : ''} dal ${fdate(first)}. Tocca una voce per vedere il dettaglio.` : 'Qui compariranno, nel tempo, tutte le registrazioni fatte.'}</p>
+    ${groups.map(g => `<h3 class="month">${esc(g.label)}</h3><ol class="timeline">
+      ${g.items.map(x => x.t === 'reg'
+        ? `<li><button class="tl" data-reg="${x.id}"><span class="day">${giorno(x.d)}</span><span class="what"><b>${esc(x.o.place) || 'Registrazione'}</b><small>${Object.keys(x.o.items).length} cont${Object.keys(x.o.items).length === 1 ? 'o' : 'i'}${x.o.items[SPESE] ? ' · con spese' : ''}</small></span><span class="amt">${eur(regNet(x.o))}</span></button></li>`
+        : `<li class="cl"><button class="tl" data-cl="${x.id}"><span class="day">${giorno(x.d)}</span><span class="what"><b>Chiusura cassa</b><small>bonifico ${esc(x.o.bank)}</small></span><span class="amt">−${eur(x.o.total)}</span></button></li>`).join('')}
+    </ol>`).join('')}
+    ${list.length ? `<div class="tl-total"><span>Totale cassa del campo</span><b>${eur(total(balances().b))}</b></div>` : ''}
+  </div>`;
   $('#view').querySelectorAll('[data-reg]').forEach(b => b.onclick = () => {
     const r = db.regs.find(x => x.id === +b.dataset.reg);
     modal(`<h2>Registrazione del ${fdate(r.date)}</h2>

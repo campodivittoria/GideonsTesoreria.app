@@ -3,6 +3,10 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 2.2 – 21/10/2026
+- "Registrazione Prima Nota" diventa "Storico Registrazioni": linea del tempo raggruppata per mese,
+  con giorno, luogo, numero di conti e totale di ogni registrazione; chiusure di cassa in rosso.
+
 ## 2.1 – 21/10/2026
 - Controllo automatico degli aggiornamenti: all'apertura (e quando si torna sull'app) confronta
   la versione pubblicata con quella in uso e, se è nuova, mostra la striscia "Aggiorna".
