@@ -3,6 +3,13 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 3.1 – 21/10/2026
+- Due nuovi conti per tutti gli account: **Quota annua Gedeoni** e **Quota annua Ausiliarie**
+  (dopo "Offerte nuovi Ausiliarie"). Presenti nel foglio di registrazione, nel grafico, nel
+  Rendiconto e nella Chiusura Cassa.
+- Dati di prova: le due quote annue pesano il 20% della cassa; Offerte Gedeoni + Ausiliarie
+  restano intorno al 50%; cassa sempre sotto i 3.000 €.
+
 ## 3.0 – 21/10/2026
 - Dati di prova: Offerte Gedeoni + Offerte Ausiliarie pesano circa il 50% della cassa
   (40% + 10%); Pro Campo scende al 17%. Cassa sempre sotto i 3.000 €.

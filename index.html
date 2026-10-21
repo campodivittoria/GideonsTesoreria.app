@@ -162,7 +162,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '3.0'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '3.1'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -197,9 +197,9 @@ const SPESE = 'Spese del Campo';
 const PRO = 'Pro Campo';
 const ACCOUNTS = ['Pro Campo','Offerte Gedeoni','Offerte Ausiliarie','PWT Gedeoni','PWT Ausiliarie',
   'Fondo Barnaba Gedeoni','Fondo Barnaba Ausiliarie','Offerte delle Chiese','Offerte Amico dei Gedeoni',
-  'Gideons Card','Offerte per la Convention','Offerte nuovi Gedeoni','Offerte nuovi Ausiliarie', SPESE];
+  'Gideons Card','Offerte per la Convention','Offerte nuovi Gedeoni','Offerte nuovi Ausiliarie','Quota annua Gedeoni','Quota annua Ausiliarie', SPESE];
 const FUNDS = ACCOUNTS.filter(a => a !== SPESE); // conti che detengono denaro
-const COLORS = ['#1f4e8c','#1b7f4b','#d9a420','#a8323c','#2c8c9e','#6a4c93','#e07a1f','#4a5a6e','#8fb339','#c2185b','#00796b','#5d4037','#7986cb'];
+const COLORS = ['#1f4e8c','#1b7f4b','#d9a420','#a8323c','#2c8c9e','#6a4c93','#e07a1f','#4a5a6e','#8fb339','#c2185b','#00796b','#5d4037','#7986cb','#00897b','#f06292'];
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -268,6 +268,8 @@ function demoData() {
     if (rnd() < .12) items['Offerte per la Convention'] = amt(4, 24);
     if (rnd() < .1) items['Offerte nuovi Gedeoni'] = amt(6, 12);
     if (rnd() < .08) items['Offerte nuovi Ausiliarie'] = amt(4, 7);
+    if (rnd() < .35) items['Quota annua Gedeoni'] = amt(10, 40);
+    if (rnd() < .2) items['Quota annua Ausiliarie'] = amt(5, 25);
     if (rnd() < .3) items[SPESE] = amt(1, Math.min(14, items[PRO]));
     d.regs.push({ id: d.seq++, date, place: pick(PLACES), items, by: 'test' });
   }
