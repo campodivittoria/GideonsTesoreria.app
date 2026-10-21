@@ -103,6 +103,7 @@
     <div id="loginMsg" class="msg err"></div>
     <button class="primary" style="margin-top:12px;width:100%">Entra</button>
   </form>
+  <p class="muted version" style="text-align:center;margin:14px 0 0"></p>
 </section>
 
 <div id="app" class="hidden">
@@ -121,6 +122,7 @@
     <div class="spacer"></div>
     <div class="user" id="who"></div>
     <button id="logout"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M13 4h6v16h-6"/></svg>Esci</button>
+    <div class="version" style="padding:8px 18px 12px;font-size:.75rem;opacity:.6"></div>
   </nav>
   <main id="view"></main>
 </div>
@@ -129,6 +131,8 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
+const VERSION = '1.1'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 const USERS = {
   campodivittoria: { pw: 'vittoriaT', role: 'user' },
   amministratore:  { pw: '030287',    role: 'admin' }
