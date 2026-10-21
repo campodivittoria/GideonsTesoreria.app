@@ -138,6 +138,7 @@
     <button data-v="rendiconto"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20v-8M11 20V6M16 20v-5M21 20V9"/></svg>Rendiconto del Campo</button>
     <button data-v="nota"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Storico Registrazioni</button>
     <button data-v="chiusura"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg>Chiusura Cassa Annua</button>
+    <button data-v="impost" class="hidden"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Impostazioni</button>
     <div class="spacer"></div>
     <div class="user" id="who"></div>
     <button id="logout"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M13 4h6v16h-6"/></svg>Esci</button>
@@ -151,7 +152,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '2.2'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '2.3'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -168,10 +169,16 @@ async function checkUpdate() {
     }
   } catch(e) {}
 }
-const USERS = {
-  campodivittoria: { pw: 'vittoriaT', role: 'user' },
-  amministratore:  { pw: '030287',    role: 'admin' }
-};
+// Utenti: quelli predefiniti, sostituiti da quelli salvati dall'amministratore in Impostazioni (su questo dispositivo)
+const DEFAULT_USERS = { user: { name: 'campodivittoria', pw: 'vittoriaT' }, admin: { name: 'amministratore', pw: '030287' } };
+const USERS_KEY = 'gedeoni_utenti';
+function users() { try { const u = JSON.parse(localStorage.getItem(USERS_KEY)); if (u && u.user && u.admin) return u; } catch(e){} return DEFAULT_USERS; }
+function findUser(name) {
+  const u = users();
+  if (name === u.admin.name) return { role: 'admin', pw: u.admin.pw };
+  if (name === u.user.name) return { role: 'user', pw: u.user.pw };
+  return null;
+}
 const SPESE = 'Spese del Campo';
 const PRO = 'Pro Campo';
 const ACCOUNTS = ['Pro Campo','Offerte Gedeoni','Offerte Ausiliarie','PWT Gedeoni','PWT Ausiliarie',
@@ -229,6 +236,8 @@ const total = b => sum(FUNDS.map(a => b[a]));
 const regTotal = r => sum(FUNDS.map(a => r.items[a]));       // entrate della registrazione
 const regNet = r => round(regTotal(r) - (r.items[SPESE]||0)); // al netto delle spese
 const others = b => round(total(b) - b[PRO]);                   // tutti i conti tranne Pro Campo
+// nessun conto può andare sotto zero con questi dati
+const valid = (regs = db.regs, closings = db.closings) => { const { b } = balances(regs, closings); return FUNDS.every(a => b[a] > -0.005); };
 
 /* ---------- login ---------- */
 const SESSION_KEY = 'gedeoni_sessione';
@@ -236,12 +245,13 @@ function enter(s) {
   session = s;
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#who').textContent = session.name + (session.role === 'admin' ? ' (amministratore)' : '');
+  $('#nav [data-v=impost]').classList.toggle('hidden', session.role !== 'admin');
   $('#lp').value = ''; $('#loginMsg').textContent = '';
   go('home');
 }
 $('#loginForm').addEventListener('submit', ev => {
   ev.preventDefault();
-  const name = $('#lu').value.trim(), u = USERS[name];
+  const name = $('#lu').value.trim(), u = findUser(name);
   if (u && u.pw === $('#lp').value) {
     try { if ($('#lr').checked) localStorage.setItem(SESSION_KEY, JSON.stringify({ name, role: u.role })); else localStorage.removeItem(SESSION_KEY); } catch(e){}
     enter({ name, role: u.role });
@@ -251,7 +261,7 @@ $('#logout').onclick = () => { closeMenu(); session = null; try { localStorage.r
 $('#nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { go(b.dataset.v); closeMenu(); } });
 
 /* ---------- menu a tendina ---------- */
-const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', nota: 'Storico Registrazioni', chiusura: 'Chiusura Cassa Annua' };
+const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', nota: 'Storico Registrazioni', chiusura: 'Chiusura Cassa Annua', impost: 'Impostazioni' };
 function openMenu() { document.body.classList.add('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'true'); }
 function closeMenu() { document.body.classList.remove('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'false'); }
 $('#menuBtn').onclick = () => document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
@@ -262,12 +272,13 @@ function go(v) {
   view = v;
   $('#pageTitle').innerHTML = `${esc(TITLES[v])}<small>Tesoreria Campo Gedeoni</small>`;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
-  ({home: vHome, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura})[v]();
+  if (v === 'impost' && session.role !== 'admin') v = view = 'home';
+  ({home: vHome, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura, impost: vImpostazioni})[v]();
 }
 
 /* ---------- modal ---------- */
 function modal(html, { close = true } = {}) {
-  $('#modalRoot').innerHTML = `<div class="overlay"><div class="modal${html.includes('id="rf"') ? ' wide' : ''}">${html}${close ? '<div style="text-align:right"><button class="primary" id="mClose">Chiudi</button></div>' : ''}</div></div>`;
+  $('#modalRoot').innerHTML = `<div class="overlay"><div class="modal${html.includes('id="rf"') || html.includes('id="cef"') ? ' wide' : ''}">${html}${close ? '<div style="text-align:right"><button class="primary" id="mClose">Chiudi</button></div>' : ''}</div></div>`;
   if (close) $('#mClose').onclick = closeModal;
 }
 function closeModal() { $('#modalRoot').innerHTML = ''; }
@@ -307,28 +318,36 @@ function vHome() {
       </div>
       <p class="muted" style="margin:12px 0 0">${db.regs.length} registrazion${db.regs.length === 1 ? 'e' : 'i'}${db.regs.length ? ', ultima il ' + fdate([...db.regs].sort((x, y) => y.date.localeCompare(x.date))[0].date) : ''}.</p>
     </div>`;
-  $('#newReg').onclick = formRegistrazione;
+  $('#newReg').onclick = () => formRegistrazione();
 }
 
 /* ---------- popup Nuova Registrazione ---------- */
-function formRegistrazione() {
-  const { b } = balances();
-  modal(`<h2>Nuova Registrazione</h2>
+// existing: registrazione da modificare (solo amministratore); senza, ne crea una nuova
+function formRegistrazione(existing) {
+  const otherRegs = existing ? db.regs.filter(r => r.id !== existing.id) : db.regs;
+  const { b } = balances(otherRegs);
+  const it = existing ? existing.items : {};
+  modal(`<h2>${existing ? 'Modifica registrazione' : 'Nuova Registrazione'}</h2>
     <form id="rf">
       <div class="grid">
-        <div><label>Data di registrazione</label><input type="date" id="rd" value="${today()}" required></div>
-        <div><label>Luogo</label><input id="rl" placeholder="es. Chiesa di Vittoria" maxlength="80" required></div>
+        <div><label>Data di registrazione</label><input type="date" id="rd" value="${existing ? existing.date : today()}" required></div>
+        <div><label>Luogo</label><input id="rl" value="${esc(existing ? existing.place : '')}" placeholder="es. Chiesa di Vittoria" maxlength="80" required></div>
       </div>
       <table style="margin-top:14px"><thead><tr><th>Conto</th><th class="num">Importo (€)</th></tr></thead><tbody>
       ${ACCOUNTS.map((a, i) => `<tr${a === SPESE ? ' class="spese"' : ''}><td>${esc(a)}${a === SPESE ? `<br><span class="muted">tolte da ${PRO}</span>` : ''}</td>
-        <td><input type="number" class="ri" data-i="${i}" min="0" step="0.01" placeholder="0,00" inputmode="decimal" style="text-align:right;width:120px"></td></tr>`).join('')}
+        <td><input type="number" class="ri" data-i="${i}" min="0" step="0.01" value="${it[a] ?? ''}" placeholder="0,00" inputmode="decimal" style="text-align:right;width:120px"></td></tr>`).join('')}
       </tbody><tfoot>
         <tr><td>Totale entrate</td><td class="num" id="rt">${eur(0)}</td></tr>
         <tr id="rnRow" class="hidden"><td>Totale al netto delle spese</td><td class="num" id="rn">${eur(0)}</td></tr>
       </tfoot></table>
       <div id="rmsg" class="msg err"></div>
-      <div class="actions"><button type="button" class="small" id="rCancel">Annulla</button><button class="primary">Salva</button></div>
+      <div class="actions">${existing ? '<button type="button" class="small danger" id="rDelete" style="margin-right:auto">Elimina</button>' : ''}<button type="button" class="small" id="rCancel">Annulla</button><button class="primary">Salva</button></div>
     </form>`, { close: false });
+  if (existing) $('#rDelete').onclick = () => {
+    if (!confirm(`Eliminare definitivamente la registrazione del ${fdate(existing.date)}?`)) return;
+    if (!valid(otherRegs)) return $('#rmsg').textContent = 'Non si può eliminare: un conto andrebbe sotto zero (controlla le chiusure di cassa successive).';
+    db.regs = otherRegs; save(); closeModal(); go(view);
+  };
   const inputs = [...document.querySelectorAll('.ri')];
   const read = () => { const items = {}; inputs.forEach(i => { const v = round(parseFloat(i.value)); if (v > 0) items[ACCOUNTS[+i.dataset.i]] = v; }); return items; };
   const refresh = () => {
@@ -337,7 +356,7 @@ function formRegistrazione() {
     $('#rnRow').classList.toggle('hidden', !it[SPESE]);
     $('#rn').textContent = eur(regNet(r));
   };
-  inputs.forEach(i => i.oninput = refresh);
+  inputs.forEach(i => i.oninput = refresh); refresh();
   $('#rCancel').onclick = closeModal;
   $('#rf').onsubmit = ev => {
     ev.preventDefault();
@@ -345,7 +364,48 @@ function formRegistrazione() {
     if (inputs.some(i => i.value && !(parseFloat(i.value) >= 0))) return msg.textContent = 'Controlla gli importi inseriti.';
     if (!Object.keys(items).length) return msg.textContent = 'Inserisci almeno un importo.';
     if (items[SPESE] && items[SPESE] > b[PRO] + (items[PRO] || 0) + 1e-9) return msg.textContent = `Le spese superano il disponibile di ${PRO} (${eur(b[PRO] + (items[PRO] || 0))}).`;
-    db.regs.push({ id: db.seq++, date: $('#rd').value, place: $('#rl').value.trim(), items, by: session.name });
+    const reg = { id: existing ? existing.id : db.seq++, date: $('#rd').value, place: $('#rl').value.trim(), items, by: existing ? existing.by : session.name };
+    if (existing) reg.editedBy = session.name;
+    const next = [...otherRegs, reg];
+    if (!valid(next)) return msg.textContent = 'Con questi importi un conto andrebbe sotto zero (controlla le chiusure di cassa successive).';
+    db.regs = next; save(); closeModal(); go(view);
+  };
+}
+
+// modifica di una chiusura di cassa (solo amministratore)
+function formChiusura(existing) {
+  const otherCl = db.closings.filter(c => c.id !== existing.id);
+  const { b } = balances(db.regs, otherCl); // cassa senza questa chiusura
+  modal(`<h2>Modifica chiusura cassa</h2>
+    <form id="cef">
+      <div class="grid">
+        <div><label>Data del bonifico</label><input type="date" id="ced" value="${existing.date}" required></div>
+        <div><label>Nome di chi ha fatto il bonifico</label><input id="cen" value="${esc(existing.by)}" required></div>
+        <div><label>Istituto di credito</label><input id="ceb" value="${esc(existing.bank)}" required></div>
+      </div>
+      <table style="margin-top:14px"><thead><tr><th>Conto</th><th class="num">Tolto (€)</th><th class="num">Disponibile</th></tr></thead><tbody>
+      ${FUNDS.map((a, i) => `<tr><td>${esc(a)}</td><td><input type="number" class="ce" data-i="${i}" min="0" step="0.01" value="${existing.items[a] ?? ''}" placeholder="0,00" inputmode="decimal" style="text-align:right;width:110px"></td><td class="num muted">${n2(b[a])}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td>Totale</td><td class="num" id="cet"></td><td></td></tr></tfoot></table>
+      <div id="cemsg" class="msg err"></div>
+      <div class="actions"><button type="button" class="small danger" id="ceDelete" style="margin-right:auto">Elimina</button><button type="button" class="small" id="ceCancel">Annulla</button><button class="primary">Salva</button></div>
+    </form>`, { close: false });
+  const inputs = [...document.querySelectorAll('.ce')];
+  const read = () => { const items = {}; inputs.forEach(i => { const v = round(parseFloat(i.value)); if (v > 0) items[FUNDS[+i.dataset.i]] = v; }); return items; };
+  const refresh = () => $('#cet').textContent = eur(sum(Object.values(read())));
+  inputs.forEach(i => i.oninput = refresh); refresh();
+  $('#ceCancel').onclick = closeModal;
+  $('#ceDelete').onclick = () => {
+    if (!confirm(`Eliminare la chiusura cassa del ${fdate(existing.date)}? Gli importi torneranno in cassa.`)) return;
+    db.closings = otherCl; save(); closeModal(); go(view);
+  };
+  $('#cef').onsubmit = ev => {
+    ev.preventDefault();
+    const items = read(), msg = $('#cemsg');
+    if (!Object.keys(items).length) return msg.textContent = 'Inserisci almeno una somma.';
+    const bad = Object.entries(items).find(([a, v]) => v > b[a] + 1e-9);
+    if (bad) return msg.textContent = `Importo superiore al disponibile per “${bad[0]}”.`;
+    const cl = { ...existing, date: $('#ced').value, by: $('#cen').value.trim(), bank: $('#ceb').value.trim(), items, total: sum(Object.values(items)), editedBy: session.name };
+    db.closings = [...otherCl, cl].sort((x, y) => x.date.localeCompare(y.date) || x.id - y.id);
     save(); closeModal(); go(view);
   };
 }
@@ -429,20 +489,73 @@ function vNota() {
     </ol>`).join('')}
     ${list.length ? `<div class="tl-total"><span>Totale cassa del campo</span><b>${eur(total(balances().b))}</b></div>` : ''}
   </div>`;
+  const admin = session.role === 'admin';
+  const editBtn = (attr, id) => admin ? `<button class="small" ${attr}="${id}" style="float:left">✎ Modifica</button>` : '';
   $('#view').querySelectorAll('[data-reg]').forEach(b => b.onclick = () => {
     const r = db.regs.find(x => x.id === +b.dataset.reg);
     modal(`<h2>Registrazione del ${fdate(r.date)}</h2>
-      <dl><dt>Luogo</dt><dd>${esc(r.place) || '—'}</dd><dt>Inserita da</dt><dd>${esc(r.by || '')}</dd></dl>
+      <dl><dt>Luogo</dt><dd>${esc(r.place) || '—'}</dd><dt>Inserita da</dt><dd>${esc(r.by || '')}${r.editedBy ? ` <span class="muted">(modificata da ${esc(r.editedBy)})</span>` : ''}</dd></dl>
       <table><tbody>${ACCOUNTS.filter(a => r.items[a]).map(a => `<tr><td>${esc(a)}</td><td class="num">${a === SPESE ? '−' : ''}${eur(r.items[a])}</td></tr>`).join('')}</tbody>
-      <tfoot><tr><td>Totale entrate</td><td class="num">${eur(regTotal(r))}</td></tr>${r.items[SPESE] ? `<tr><td>Al netto delle spese</td><td class="num">${eur(regNet(r))}</td></tr>` : ''}</tfoot></table>`);
+      <tfoot><tr><td>Totale entrate</td><td class="num">${eur(regTotal(r))}</td></tr>${r.items[SPESE] ? `<tr><td>Al netto delle spese</td><td class="num">${eur(regNet(r))}</td></tr>` : ''}</tfoot></table>
+      ${editBtn('data-edit-reg', r.id)}`);
+    if (admin) $('[data-edit-reg]').onclick = () => { closeModal(); formRegistrazione(r); };
   });
   $('#view').querySelectorAll('[data-cl]').forEach(b => b.onclick = () => {
     const c = db.closings.find(x => x.id === +b.dataset.cl);
     modal(`<h2>Chiusura cassa del ${fdate(c.date)}</h2>
-      <dl><dt>Bonifico fatto da</dt><dd>${esc(c.by)}</dd><dt>Istituto di credito</dt><dd>${esc(c.bank)}</dd></dl>
+      <dl><dt>Bonifico fatto da</dt><dd>${esc(c.by)}</dd><dt>Istituto di credito</dt><dd>${esc(c.bank)}</dd>${c.editedBy ? `<dt>Modificata da</dt><dd>${esc(c.editedBy)}</dd>` : ''}</dl>
       <table><tbody>${FUNDS.filter(a => c.items[a]).map(a => `<tr><td>${esc(a)}</td><td class="num">−${eur(c.items[a])}</td></tr>`).join('')}</tbody>
-      <tfoot><tr><td>Totale tolto dalla cassa</td><td class="num">−${eur(c.total)}</td></tr></tfoot></table>`);
+      <tfoot><tr><td>Totale tolto dalla cassa</td><td class="num">−${eur(c.total)}</td></tr></tfoot></table>
+      ${editBtn('data-edit-cl', c.id)}`);
+    if (admin) $('[data-edit-cl]').onclick = () => { closeModal(); formChiusura(c); };
   });
+}
+
+/* ---------- 5. Impostazioni (solo amministratore) ---------- */
+function vImpostazioni() {
+  const u = users();
+  $('#view').innerHTML = `<div class="card">
+    <h2>Utenti e password</h2>
+    <p class="muted">Le modifiche valgono per <b>questo dispositivo</b>: l'app salva tutto sul telefono o computer in uso. Se cambi una password qui, dovrai cambiarla allo stesso modo sugli altri dispositivi dove si usa l'app.</p>
+    <form id="uf">
+      <h3 style="font-size:1rem;margin:16px 0 8px">Utente generico (tesoriere)</h3>
+      <div class="grid">
+        <div><label>Nome utente</label><input id="un" value="${esc(u.user.name)}" autocomplete="off" required></div>
+        <div><label>Nuova password <span class="muted">(vuoto = non cambiare)</span></label><input id="up" type="password" autocomplete="new-password"></div>
+      </div>
+      <h3 style="font-size:1rem;margin:20px 0 8px">Amministratore</h3>
+      <div class="grid">
+        <div><label>Nome utente</label><input id="an" value="${esc(u.admin.name)}" autocomplete="off" required></div>
+        <div><label>Nuova password <span class="muted">(vuoto = non cambiare)</span></label><input id="ap" type="password" autocomplete="new-password"></div>
+      </div>
+      <h3 style="font-size:1rem;margin:20px 0 8px">Conferma</h3>
+      <div class="grid"><div><label>Password attuale dell'amministratore</label><input id="cp" type="password" autocomplete="current-password" required></div></div>
+      <div id="umsg" class="msg err"></div>
+      <div class="actions" style="justify-content:flex-start"><button class="primary">Salva</button><button type="button" class="small" id="uReset">Ripristina quelli iniziali</button></div>
+    </form>
+  </div>`;
+  const msg = (t, ok) => { const m = $('#umsg'); m.className = 'msg ' + (ok ? 'ok' : 'err'); m.textContent = t; };
+  const persist = nu => {
+    try { localStorage.setItem(USERS_KEY, JSON.stringify(nu)); } catch(e) { return msg('Impossibile salvare su questo dispositivo.'); }
+    // la sessione corrente segue il nuovo nome dell'amministratore
+    session.name = nu.admin.name; $('#who').textContent = nu.admin.name + ' (amministratore)';
+    try { if (localStorage.getItem(SESSION_KEY)) localStorage.setItem(SESSION_KEY, JSON.stringify({ name: nu.admin.name, role: 'admin' })); } catch(e){}
+    vImpostazioni(); msg('Salvato. Dalla prossima volta usa i nuovi dati per entrare.', true);
+  };
+  $('#uf').onsubmit = ev => {
+    ev.preventDefault();
+    if ($('#cp').value !== u.admin.pw) return msg('La password attuale dell’amministratore non è corretta.');
+    const un = $('#un').value.trim(), an = $('#an').value.trim(), up = $('#up').value, ap = $('#ap').value;
+    if (!un || !an) return msg('I nomi utente non possono essere vuoti.');
+    if (un === an) return msg('I due nomi utente devono essere diversi.');
+    if ((up && up.length < 4) || (ap && ap.length < 4)) return msg('Le password devono avere almeno 4 caratteri.');
+    persist({ user: { name: un, pw: up || u.user.pw }, admin: { name: an, pw: ap || u.admin.pw } });
+  };
+  $('#uReset').onclick = () => {
+    if ($('#cp').value !== u.admin.pw) return msg('Inserisci la password attuale dell’amministratore per confermare.');
+    if (!confirm('Ripristinare gli utenti e le password iniziali?')) return;
+    persist(JSON.parse(JSON.stringify(DEFAULT_USERS)));
+  };
 }
 
 /* ---------- 4. Chiusura cassa annua ---------- */
@@ -496,7 +609,7 @@ function vChiusura() {
 // riapre la sessione salvata con "Rimani connesso" (in fondo: tutte le funzioni e costanti sono già definite)
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e){}
-if (saved && USERS[saved.name]) enter({ name: saved.name, role: USERS[saved.name].role });
+if (saved && findUser(saved.name)) enter({ name: saved.name, role: findUser(saved.name).role });
 
 checkUpdate();
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });

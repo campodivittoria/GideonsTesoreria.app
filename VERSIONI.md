@@ -3,6 +3,13 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 2.3 – 21/10/2026
+- Nuova voce **Impostazioni** (solo amministratore): cambio di nome utente e password dell'utente
+  generico e dell'amministratore, con conferma della password attuale; tasto per ripristinare quelli iniziali.
+- L'amministratore può **modificare o eliminare** qualsiasi registrazione (data, luogo, tutti gli importi)
+  e qualsiasi chiusura di cassa, dal dettaglio nello Storico. L'app impedisce modifiche che manderebbero
+  un conto sotto zero.
+
 ## 2.2 – 21/10/2026
 - "Registrazione Prima Nota" diventa "Storico Registrazioni": linea del tempo raggruppata per mese,
   con giorno, luogo, numero di conti e totale di ogni registrazione; chiusure di cassa in rosso.
