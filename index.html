@@ -378,10 +378,7 @@ function vNota() {
     ${list.map(x => x.t === 'reg'
       ? `<tr><td><button class="link" data-reg="${x.id}">Registrazione del ${fdate(x.d)}</button></td><td>${esc(x.o.place)}</td><td class="num">${eur(regNet(x.o))}</td></tr>`
       : `<tr><td><button class="link" data-cl="${x.id}">Chiusura cassa del ${fdate(x.d)}</button></td><td class="muted">${esc(x.o.bank)}</td><td class="num">−${eur(x.o.total)}</td></tr>`).join('')}
-    </tbody><tfoot>${(() => { const { b } = balances(); return `
-      <tr><td colspan="2">Totale ${PRO}</td><td class="num">${eur(b[PRO])}</td></tr>
-      <tr><td colspan="2">Totale altri conti</td><td class="num">${eur(others(b))}</td></tr>
-      <tr class="grand"><td colspan="2">Totale cassa del campo</td><td class="num">${eur(total(b))}</td></tr>`; })()}</tfoot></table>`
+    </tbody><tfoot><tr class="grand"><td colspan="2">Totale cassa del campo</td><td class="num">${eur(total(balances().b))}</td></tr></tfoot></table>`
     : '<p class="muted">Nessuna registrazione ancora.</p>'}</div>`;
   $('#view').querySelectorAll('[data-reg]').forEach(b => b.onclick = () => {
     const r = db.regs.find(x => x.id === +b.dataset.reg);
