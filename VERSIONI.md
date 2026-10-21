@@ -3,6 +3,11 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 3.3 – 21/10/2026
+- Dati di prova: le quote annue sono multipli esatti di 38 € (un Gedeone) e di 9 € (un'Ausiliaria),
+  cioè 38 o 76 € e 9, 18 o 27 €. Offerte ridotte di conseguenza: quote ≈ 20%, Offerte ≈ 40%,
+  PWT ≈ 10%, cassa sempre sotto i 3.000 €.
+
 ## 3.2 – 21/10/2026
 - Dati di prova: Offerte Gedeoni + Ausiliarie ≈ 40%, PWT Gedeoni + Ausiliarie ≈ 10%,
   Quote annue ≈ 20%, resto ≈ 30%. Cassa sempre sotto i 3.000 €.
