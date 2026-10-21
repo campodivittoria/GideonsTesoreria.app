@@ -86,6 +86,8 @@
   table.compact .zero { color:#aab3bf; }
   @media (max-width:420px) { table.compact th, table.compact td { font-size:.72rem; padding:6px 2px; } table.compact td:first-child { font-size:.74rem; } }
   #login { max-width:360px; margin:12vh auto; }
+  #updBar { position:fixed; left:12px; right:12px; bottom:12px; z-index:30; background:var(--ok); color:#fff; padding:12px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:.95rem; }
+  #updBar button { background:#fff; color:var(--ok); border:0; border-radius:6px; padding:8px 14px; font-weight:700; cursor:pointer; font-size:.95rem; }
   .hidden { display:none !important; }
   @media print { header button, nav, .noprint { display:none !important; } }
 </style>
@@ -128,11 +130,27 @@
 </div>
 
 <div id="modalRoot"></div>
+<div id="updBar" class="hidden"></div>
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '2.0'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '2.1'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
+
+/* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
+   e, se la versione pubblicata è diversa da questa, propone di ricaricare. */
+async function checkUpdate() {
+  if (location.protocol === 'file:') return;
+  try {
+    const html = await (await fetch('index.html', { cache: 'reload' })).text();
+    const m = html.match(/const VERSION = '([^']+)'/);
+    if (m && m[1] !== VERSION) {
+      $('#updBar').innerHTML = `Nuova versione ${esc(m[1])} disponibile <button id="updBtn">Aggiorna</button>`;
+      $('#updBar').classList.remove('hidden');
+      $('#updBtn').onclick = () => location.reload();
+    }
+  } catch(e) {}
+}
 const USERS = {
   campodivittoria: { pw: 'vittoriaT', role: 'user' },
   amministratore:  { pw: '030287',    role: 'admin' }
@@ -452,6 +470,9 @@ function vChiusura() {
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e){}
 if (saved && USERS[saved.name]) enter({ name: saved.name, role: USERS[saved.name].role });
+
+checkUpdate();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
 </script>
 </body>
 </html>

@@ -3,6 +3,10 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 2.1 – 21/10/2026
+- Controllo automatico degli aggiornamenti: all'apertura (e quando si torna sull'app) confronta
+  la versione pubblicata con quella in uso e, se è nuova, mostra la striscia "Aggiorna".
+
 ## 2.0 – 21/10/2026
 - Passaggio alla versione 2.0 su richiesta del tesoriere; da qui si prosegue con 2.1, 2.2 …
 
