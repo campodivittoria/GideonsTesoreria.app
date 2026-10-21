@@ -162,7 +162,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '2.9'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '3.0'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -255,14 +255,14 @@ function demoData() {
   for (let i = 0; i < 100; i++) {
     const day = new Date(start); day.setDate(day.getDate() + Math.floor(i * 7.3 + rnd() * 5));
     const date = day.toISOString().slice(0, 10);
-    const items = { [PRO]: amt(5, 38) };
-    if (rnd() < .8) items['Offerte Gedeoni'] = amt(2, 22);
-    if (rnd() < .6) items['Offerte Ausiliarie'] = amt(1, 11);
-    if (rnd() < .5) items['PWT Gedeoni'] = amt(1, 14);
+    const items = { [PRO]: amt(3, 18) };
+    if (rnd() < .8) items['Offerte Gedeoni'] = amt(10, 50);
+    if (rnd() < .6) items['Offerte Ausiliarie'] = amt(5, 25);
+    if (rnd() < .5) items['PWT Gedeoni'] = amt(1, 8);
     if (rnd() < .35) items['PWT Ausiliarie'] = amt(1, 7);
     if (rnd() < .25) items['Fondo Barnaba Gedeoni'] = amt(1, 10);
     if (rnd() < .15) items['Fondo Barnaba Ausiliarie'] = amt(1, 6);
-    if (rnd() < .4) items['Offerte delle Chiese'] = amt(6, 48);
+    if (rnd() < .4) items['Offerte delle Chiese'] = amt(3, 20);
     if (rnd() < .2) items['Offerte Amico dei Gedeoni'] = amt(2, 18);
     if (rnd() < .3) items['Gideons Card'] = amt(1, 7);
     if (rnd() < .12) items['Offerte per la Convention'] = amt(4, 24);

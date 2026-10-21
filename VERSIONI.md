@@ -3,6 +3,10 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 3.0 – 21/10/2026
+- Dati di prova: Offerte Gedeoni + Offerte Ausiliarie pesano circa il 50% della cassa
+  (40% + 10%); Pro Campo scende al 17%. Cassa sempre sotto i 3.000 €.
+
 ## 2.9 – 21/10/2026
 - Dati di prova ridimensionati: la cassa resta sempre sotto i 3.000 € (circa 2.400 € oggi,
   picco di circa 2.700 € a fine 2025 prima della chiusura).
