@@ -162,7 +162,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '3.1'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '3.2'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -256,10 +256,10 @@ function demoData() {
     const day = new Date(start); day.setDate(day.getDate() + Math.floor(i * 7.3 + rnd() * 5));
     const date = day.toISOString().slice(0, 10);
     const items = { [PRO]: amt(2, 12) };
-    if (rnd() < .8) items['Offerte Gedeoni'] = amt(10, 50);
+    if (rnd() < .8) items['Offerte Gedeoni'] = amt(8, 38);
     if (rnd() < .6) items['Offerte Ausiliarie'] = amt(4, 16);
-    if (rnd() < .5) items['PWT Gedeoni'] = amt(1, 6);
-    if (rnd() < .35) items['PWT Ausiliarie'] = amt(1, 5);
+    if (rnd() < .5) items['PWT Gedeoni'] = amt(4, 14);
+    if (rnd() < .35) items['PWT Ausiliarie'] = amt(2, 9);
     if (rnd() < .25) items['Fondo Barnaba Gedeoni'] = amt(1, 7);
     if (rnd() < .15) items['Fondo Barnaba Ausiliarie'] = amt(1, 6);
     if (rnd() < .4) items['Offerte delle Chiese'] = amt(2, 14);
