@@ -3,6 +3,10 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 2.4 – 21/10/2026
+- Impostazioni: si modificano solo nome utente e password dell'amministratore (con ripetizione
+  della nuova password). L'utente generico resta fisso e non modificabile.
+
 ## 2.3 – 21/10/2026
 - Nuova voce **Impostazioni** (solo amministratore): cambio di nome utente e password dell'utente
   generico e dell'amministratore, con conferma della password attuale; tasto per ripristinare quelli iniziali.
