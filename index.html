@@ -71,6 +71,18 @@
   .legend td { padding:5px 6px; font-size:.9rem; }
   .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:8px; vertical-align:middle; }
   .scroll { overflow-x:auto; }
+  /* tabella compatta per il rendiconto (leggibile su telefono) */
+  table.compact { table-layout:fixed; }
+  table.compact th, table.compact td { font-size:.78rem; padding:6px 3px; line-height:1.2; }
+  table.compact th { font-size:.68rem; text-transform:uppercase; letter-spacing:.02em; vertical-align:bottom; }
+  table.compact td:first-child { font-size:.8rem; }
+  table.compact tbody tr { cursor:pointer; }
+  table.compact tbody tr:active, table.compact tbody tr:hover { background:#eef3fa; }
+  table.compact td.num, table.compact th.num { white-space:nowrap; }
+  table.compact tfoot td { font-size:.8rem; }
+  table.compact tr.spese td { color:var(--bad); }
+  table.compact .zero { color:#aab3bf; }
+  @media (max-width:420px) { table.compact th, table.compact td { font-size:.72rem; padding:6px 2px; } table.compact td:first-child { font-size:.74rem; } }
   #login { max-width:360px; margin:12vh auto; }
   .hidden { display:none !important; }
   @media print { header button, nav, .noprint { display:none !important; } }
@@ -129,6 +141,7 @@ const COLORS = ['#1f4e8c','#1b7f4b','#d9a420','#a8323c','#2c8c9e','#6a4c93','#e0
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const eur = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
+const n2 = n => new Intl.NumberFormat('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n); // senza simbolo €
 const fdate = d => d ? d.split('-').reverse().join('/') : '';
 const today = () => new Date().toISOString().slice(0,10);
 const round = n => Math.round(n*100)/100;
@@ -295,15 +308,16 @@ function vRendiconto() {
   $('#view').innerHTML = `
     <div class="card">
       <h2>Rendiconto del Campo</h2>
-      <p class="muted">${admin ? 'Come amministratore puoi correggere o eliminare gli importi dal dettaglio di ciascun conto.' : 'Solo l’amministratore può modificare i numeri.'}</p>
-      <div class="scroll"><table><thead><tr><th>Conto</th><th class="num">Totale versato</th><th class="num">Spese / prelievi</th><th class="num">Saldo</th><th></th></tr></thead><tbody>
-      ${rows.map(r => `<tr><td>${esc(r.a)}</td><td class="num">${eur(r.versato)}</td><td class="num">${eur(r.a === PRO ? round(spese + r.prelevato) : r.prelevato)}</td><td class="num">${eur(b[r.a])}</td>
-        <td><button class="small" data-d="${esc(r.a)}">Dettaglio</button></td></tr>`).join('')}
-      <tr><td>${SPESE}</td><td class="num">—</td><td class="num">${eur(spese)}</td><td class="num muted">a carico di ${PRO}</td><td><button class="small" data-d="${SPESE}">Dettaglio</button></td></tr>
-      </tbody><tfoot><tr><td>Totale cassa del campo</td><td class="num">${eur(sum(rows.map(r => r.versato)))}</td><td class="num">${eur(round(spese + sum(rows.map(r => r.prelevato))))}</td><td class="num">${eur(total(b))}</td><td></td></tr></tfoot></table></div>
-      <p class="noprint"><button class="small" onclick="window.print()">Stampa</button></p>
+      <p class="muted">Importi in euro. Tocca un conto per il dettaglio${admin ? ' e per correggere gli importi' : ''}.</p>
+      <table class="compact"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:22%"><col style="width:22%"></colgroup>
+      <thead><tr><th>Conto</th><th class="num">Versato</th><th class="num">Spese /<br>prelievi</th><th class="num">Saldo</th></tr></thead><tbody>
+      ${rows.map(r => { const out = r.a === PRO ? round(spese + r.prelevato) : r.prelevato;
+        return `<tr data-d="${esc(r.a)}"><td>${esc(r.a)}</td><td class="num${r.versato ? '' : ' zero'}">${n2(r.versato)}</td><td class="num${out ? '' : ' zero'}">${n2(out)}</td><td class="num"><b>${n2(b[r.a])}</b></td></tr>`; }).join('')}
+      <tr class="spese" data-d="${SPESE}"><td>${SPESE}<br><span class="muted" style="font-size:.65rem">a carico di ${PRO}</span></td><td class="num zero">—</td><td class="num">${n2(spese)}</td><td class="num zero">—</td></tr>
+      </tbody><tfoot><tr><td>Totale cassa</td><td class="num">${n2(sum(rows.map(r => r.versato)))}</td><td class="num">${n2(round(spese + sum(rows.map(r => r.prelevato))))}</td><td class="num">${n2(total(b))}</td></tr></tfoot></table>
+      <p class="noprint" style="margin-top:12px"><button class="small" onclick="window.print()">Stampa</button></p>
     </div>`;
-  $('#view').querySelectorAll('[data-d]').forEach(btn => btn.onclick = () => dettaglio(btn.dataset.d));
+  $('#view').querySelectorAll('tr[data-d]').forEach(tr => tr.onclick = () => dettaglio(tr.dataset.d));
 }
 
 function dettaglio(account) {
