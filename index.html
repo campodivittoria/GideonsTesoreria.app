@@ -140,7 +140,7 @@
     <h1 id="pageTitle">Tesoreria Campo Gedeoni</h1>
     <button id="shareBtn" aria-label="Condividi l'app" title="Condividi"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
   </header>
-  <div id="demoBar" class="hidden">Dati di prova – account <b>test</b>. I numeri sono inventati e vengono rigenerati a ogni accesso.</div>
+  <div id="demoBar" class="hidden">Dati di prova – account <b>test</b> (amministratore). I numeri sono inventati e vengono rigenerati a ogni accesso.</div>
   <div id="scrim"></div>
   <nav id="nav" aria-label="Menu principale">
     <div class="brand"><img src="icon.svg" alt="" width="44" height="44" style="border-radius:10px"><div><b>Tesoreria</b><span>Campo Gedeoni</span></div></div>
@@ -162,7 +162,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '2.7'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '2.8'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -190,7 +190,7 @@ function findUser(name) {
   const u = users();
   if (sameName(name, u.admin.name)) return { role: 'admin', pw: u.admin.pw, name: u.admin.name };
   if (sameName(name, u.user.name)) return { role: 'user', pw: u.user.pw, name: u.user.name };
-  if (sameName(name, DEMO_USER.name)) return { role: 'user', pw: DEMO_USER.pw, name: DEMO_USER.name, demo: true };
+  if (sameName(name, DEMO_USER.name)) return { role: 'admin', pw: DEMO_USER.pw, name: DEMO_USER.name, demo: true }; // amministratore, ma solo sui dati di prova
   return null;
 }
 const SPESE = 'Spese del Campo';
@@ -307,8 +307,8 @@ function enter(s, fresh) {
   if (s.demo) { const d = load(DEMO_KEY); db = fresh || !d.regs.length ? demoData() : d; save(); }
   else db = load();
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  $('#who').textContent = session.name + (session.role === 'admin' ? ' (amministratore)' : '') + (session.demo ? ' (dati di prova)' : '');
-  $('#nav [data-v=impost]').classList.toggle('hidden', session.role !== 'admin');
+  $('#who').textContent = session.name + (session.demo ? ' (amministratore di prova)' : session.role === 'admin' ? ' (amministratore)' : '');
+  $('#nav [data-v=impost]').classList.toggle('hidden', session.role !== 'admin' || session.demo);
   $('#demoBar').classList.toggle('hidden', !session.demo);
   $('#lp').value = ''; $('#loginMsg').textContent = '';
   go('home');
@@ -337,7 +337,7 @@ function go(v) {
   view = v;
   $('#pageTitle').innerHTML = `${esc(TITLES[v])}<small>Tesoreria Campo Gedeoni</small>`;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
-  if (v === 'impost' && session.role !== 'admin') v = view = 'home';
+  if (v === 'impost' && (session.role !== 'admin' || session.demo)) v = view = 'home';
   ({home: vHome, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura, impost: vImpostazioni})[v]();
 }
 

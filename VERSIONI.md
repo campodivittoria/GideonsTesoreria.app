@@ -3,6 +3,10 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 2.8 – 21/10/2026
+- L'account di prova `test` è amministratore sui dati di prova: può modificare ed eliminare
+  registrazioni e chiusure. Non ha accesso a Impostazioni (gli account veri restano protetti).
+
 ## 2.7 – 21/10/2026
 - Account di prova **test / test**: entra in un ambiente separato con 100 registrazioni inventate
   su due anni e due chiusure di cassa annuali, rigenerate a ogni accesso. I dati veri restano intatti.
