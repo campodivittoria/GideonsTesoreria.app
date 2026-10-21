@@ -15,12 +15,26 @@
   :root { --bg:#f4f6f9; --card:#fff; --ink:#1d2733; --muted:#6b7785; --brand:#1f4e8c; --brand-d:#163a69; --line:#dde3ea; --ok:#1b7f4b; --bad:#b3261e; }
   * { box-sizing: border-box; }
   body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
-  header { background:var(--brand); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  header h1 { font-size:1.15rem; margin:0; flex:1; }
-  header .who { font-size:.85rem; opacity:.9; }
-  nav { display:flex; gap:4px; flex-wrap:wrap; padding:8px 16px; background:var(--brand-d); }
-  nav button { background:transparent; color:#fff; border:0; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:.95rem; }
-  nav button.active, nav button:hover { background:rgba(255,255,255,.18); }
+  header { background:var(--brand); color:#fff; padding:10px 12px; display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:5; }
+  header h1 { font-size:1.05rem; margin:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  header h1 small { display:block; font-size:.75rem; font-weight:400; opacity:.85; }
+  #menuBtn { background:transparent; border:0; color:#fff; width:40px; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  #menuBtn:hover { background:rgba(255,255,255,.15); }
+  #menuBtn span { display:block; width:22px; height:2px; background:#fff; border-radius:2px; box-shadow:0 -7px 0 #fff, 0 7px 0 #fff; }
+  /* Menu a tendina laterale */
+  #scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:20; opacity:0; pointer-events:none; transition:opacity .2s; }
+  nav { position:fixed; top:0; left:0; bottom:0; width:280px; max-width:85vw; background:var(--brand-d); color:#fff; z-index:21; display:flex; flex-direction:column; transform:translateX(-100%); transition:transform .25s ease; box-shadow:4px 0 16px rgba(0,0,0,.3); }
+  body.menu-open nav { transform:none; }
+  body.menu-open #scrim { opacity:1; pointer-events:auto; }
+  nav .brand { display:flex; align-items:center; gap:12px; padding:18px 16px; background:var(--brand); }
+  nav .brand b { display:block; font-size:1rem; } nav .brand span { font-size:.8rem; opacity:.85; }
+  nav button { background:transparent; color:#fff; border:0; padding:14px 18px; text-align:left; cursor:pointer; font-size:1rem; display:flex; align-items:center; gap:14px; width:100%; }
+  nav button svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; opacity:.9; }
+  nav button.active { background:rgba(255,255,255,.18); font-weight:600; }
+  nav button:hover { background:rgba(255,255,255,.12); }
+  nav .spacer { flex:1; }
+  nav .user { padding:12px 18px; font-size:.85rem; opacity:.85; border-top:1px solid rgba(255,255,255,.15); }
+  nav #logout { border-top:1px solid rgba(255,255,255,.15); }
   main { max-width:960px; margin:0 auto; padding:16px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
   h2 { margin:0 0 12px; font-size:1.2rem; }
@@ -67,16 +81,20 @@
 
 <div id="app" class="hidden">
   <header>
+    <button id="menuBtn" aria-label="Apri menu" aria-controls="nav" aria-expanded="false"><span></span></button>
+    <h1 id="pageTitle">Tesoreria Campo Gedeoni</h1>
     <img src="icon.svg" alt="" width="32" height="32" style="border-radius:7px">
-    <h1>Tesoreria Campo Gedeoni</h1>
-    <span class="who" id="who"></span>
-    <button class="small" id="logout">Esci</button>
   </header>
-  <nav id="nav">
-    <button data-v="conti">Conti</button>
-    <button data-v="rendiconto">Rendiconto del Campo</button>
-    <button data-v="nota">Registrazione Prima Nota</button>
-    <button data-v="chiusura">Chiusura Cassa Annua</button>
+  <div id="scrim"></div>
+  <nav id="nav" aria-label="Menu principale">
+    <div class="brand"><img src="icon.svg" alt="" width="44" height="44" style="border-radius:10px"><div><b>Tesoreria</b><span>Campo Gedeoni</span></div></div>
+    <button data-v="conti"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Conti</button>
+    <button data-v="rendiconto"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20v-8M11 20V6M16 20v-5M21 20V9"/></svg>Rendiconto del Campo</button>
+    <button data-v="nota"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Registrazione Prima Nota</button>
+    <button data-v="chiusura"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg>Chiusura Cassa Annua</button>
+    <div class="spacer"></div>
+    <div class="user" id="who"></div>
+    <button id="logout"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M13 4h6v16h-6"/></svg>Esci</button>
   </nav>
   <main id="view"></main>
 </div>
@@ -137,11 +155,20 @@ $('#loginForm').addEventListener('submit', ev => {
     go('conti');
   } else $('#loginMsg').textContent = 'Utente o password non corretti.';
 });
-$('#logout').onclick = () => { session = null; $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); };
-$('#nav').addEventListener('click', e => { if (e.target.dataset.v) go(e.target.dataset.v); });
+$('#logout').onclick = () => { closeMenu(); session = null; $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); };
+$('#nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { go(b.dataset.v); closeMenu(); } });
+
+/* ---------- menu a tendina ---------- */
+const TITLES = { conti: 'Conti', rendiconto: 'Rendiconto del Campo', nota: 'Registrazione Prima Nota', chiusura: 'Chiusura Cassa Annua' };
+function openMenu() { document.body.classList.add('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'true'); }
+function closeMenu() { document.body.classList.remove('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'false'); }
+$('#menuBtn').onclick = () => document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
+$('#scrim').onclick = closeMenu;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); closeModal(); } });
 
 function go(v) {
   view = v;
+  $('#pageTitle').innerHTML = `${esc(TITLES[v])}<small>Tesoreria Campo Gedeoni</small>`;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   ({conti: vConti, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura})[v]();
 }
