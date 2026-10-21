@@ -1,12 +1,305 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prima App</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tesoreria Campo Gedeoni</title>
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --ink:#1d2733; --muted:#6b7785; --brand:#1f4e8c; --brand-d:#163a69; --line:#dde3ea; --ok:#1b7f4b; --bad:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:1.15rem; margin:0; flex:1; }
+  header .who { font-size:.85rem; opacity:.9; }
+  nav { display:flex; gap:4px; flex-wrap:wrap; padding:8px 16px; background:var(--brand-d); }
+  nav button { background:transparent; color:#fff; border:0; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:.95rem; }
+  nav button.active, nav button:hover { background:rgba(255,255,255,.18); }
+  main { max-width:960px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  h2 { margin:0 0 12px; font-size:1.2rem; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:8px; border-bottom:1px solid var(--line); font-size:.95rem; }
+  th { color:var(--muted); font-weight:600; }
+  td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
+  tfoot td { font-weight:700; border-top:2px solid var(--ink); }
+  input, select, textarea { font:inherit; padding:8px; border:1px solid var(--line); border-radius:6px; width:100%; background:#fff; }
+  input[readonly] { background:#eef1f5; color:var(--ink); }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:4px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  button.primary { background:var(--brand); color:#fff; border:0; padding:10px 16px; border-radius:6px; cursor:pointer; font-size:1rem; }
+  button.primary:hover { background:var(--brand-d); }
+  button.link { background:none; border:0; color:var(--brand); cursor:pointer; padding:0; font:inherit; text-align:left; text-decoration:underline; }
+  button.small { padding:4px 8px; border:1px solid var(--line); background:#fff; border-radius:5px; cursor:pointer; }
+  button.danger { color:var(--bad); }
+  .msg { margin-top:10px; font-size:.9rem; }
+  .msg.err { color:var(--bad); } .msg.ok { color:var(--ok); }
+  .big { font-size:1.6rem; font-weight:700; }
+  .muted { color:var(--muted); font-size:.85rem; }
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:10; }
+  .modal { background:#fff; border-radius:10px; padding:20px; max-width:480px; width:100%; max-height:90vh; overflow:auto; }
+  .modal dl { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:12px 0; }
+  .modal dt { color:var(--muted); } .modal dd { margin:0; }
+  #login { max-width:360px; margin:12vh auto; }
+  .hidden { display:none !important; }
+  @media print { header button, nav, .noprint { display:none !important; } }
+</style>
 </head>
-<body style="font-family: sans-serif; text-align: center; padding: 40px;">
-  <h1>Funziona! 🎉</h1>
-  <p>La mia prima web app su GitHub.</p>
+<body>
+
+<section id="login" class="card">
+  <h2>Tesoreria del Campo</h2>
+  <p class="muted">Gedeoni Internazionali – accedi per continuare</p>
+  <form id="loginForm">
+    <label for="lu">Utente</label><input id="lu" autocomplete="username" required>
+    <label for="lp" style="margin-top:10px">Password</label><input id="lp" type="password" autocomplete="current-password" required>
+    <div id="loginMsg" class="msg err"></div>
+    <button class="primary" style="margin-top:12px;width:100%">Entra</button>
+  </form>
+</section>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>Tesoreria Campo Gedeoni</h1>
+    <span class="who" id="who"></span>
+    <button class="small" id="logout">Esci</button>
+  </header>
+  <nav id="nav">
+    <button data-v="conti">Conti</button>
+    <button data-v="rendiconto">Rendiconto del Campo</button>
+    <button data-v="nota">Registrazione Prima Nota</button>
+    <button data-v="chiusura">Chiusura Cassa Annua</button>
+  </nav>
+  <main id="view"></main>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+// NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
+const USERS = {
+  campodivittoria: { pw: 'vittoriaT', role: 'user' },
+  amministratore:  { pw: '030287',    role: 'admin' }
+};
+const SPESE = 'Spese del Campo';
+const PRO = 'Pro Campo';
+const ACCOUNTS = ['Pro Campo','Offerte Gedeoni','Offerte Ausiliarie','PWT Gedeoni','PWT Ausiliarie',
+  'Fondo Barnaba Gedeoni','Fondo Barnaba Ausiliarie','Offerte delle Chiese','Offerte Amico dei Gedeoni',
+  'Gideons Card','Offerte per la Convention','Offerte nuovi Gedeoni','Offerte nuovi Ausiliarie', SPESE];
+const FUNDS = ACCOUNTS.filter(a => a !== SPESE); // conti che detengono denaro
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
+const fdate = d => d ? d.split('-').reverse().join('/') : '';
+const today = () => new Date().toISOString().slice(0,10);
+const round = n => Math.round(n*100)/100;
+
+let db = load();
+let session = null;
+let view = 'conti';
+
+function load() {
+  try { const d = JSON.parse(localStorage.getItem('gedeoni_tesoreria')); if (d && d.entries) return d; } catch(e){}
+  return { entries: [], closings: [], seq: 1 };
+}
+function save() { try { localStorage.setItem('gedeoni_tesoreria', JSON.stringify(db)); } catch(e){ alert('Impossibile salvare i dati su questo dispositivo.'); } }
+
+// Una registrazione: {id, date, account, amount (>0 versamento/spesa; <0 prelievo di chiusura), note, closingId?}
+function balances(entries = db.entries) {
+  const b = Object.fromEntries(FUNDS.map(a => [a, 0]));
+  let spese = 0;
+  for (const e of entries) {
+    if (e.account === SPESE) { b[PRO] -= e.amount; spese += e.amount; }
+    else b[e.account] += e.amount;
+  }
+  return { b, spese };
+}
+const total = b => round(FUNDS.reduce((s,a) => s + b[a], 0));
+
+/* ---------- login ---------- */
+$('#loginForm').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const u = USERS[$('#lu').value.trim()];
+  if (u && u.pw === $('#lp').value) {
+    session = { name: $('#lu').value.trim(), role: u.role };
+    $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+    $('#who').textContent = session.name + (session.role === 'admin' ? ' (amministratore)' : '');
+    $('#lp').value = ''; $('#loginMsg').textContent = '';
+    go('conti');
+  } else $('#loginMsg').textContent = 'Utente o password non corretti.';
+});
+$('#logout').onclick = () => { session = null; $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); };
+$('#nav').addEventListener('click', e => { if (e.target.dataset.v) go(e.target.dataset.v); });
+
+function go(v) {
+  view = v;
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  ({conti: vConti, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura})[v]();
+}
+
+/* ---------- modal ---------- */
+function modal(html) {
+  $('#modalRoot').innerHTML = `<div class="overlay"><div class="modal">${html}<div style="text-align:right"><button class="primary" id="mClose">Chiudi</button></div></div></div>`;
+  $('#mClose').onclick = closeModal;
+}
+function closeModal() { $('#modalRoot').innerHTML = ''; }
+
+/* ---------- 1. Conti (inserimento) ---------- */
+function vConti() {
+  const { b } = balances();
+  $('#view').innerHTML = `
+    <div class="card">
+      <h2>Nuova registrazione</h2>
+      <form id="f">
+        <div class="grid">
+          <div><label>Data</label><input type="date" id="fd" value="${today()}" required></div>
+          <div><label>Conto</label><select id="fa">${ACCOUNTS.map(a=>`<option>${esc(a)}</option>`).join('')}</select></div>
+          <div><label>Importo (€)</label><input type="number" id="fm" min="0.01" step="0.01" required></div>
+        </div>
+        <div style="margin-top:12px"><label>Nota (facoltativa)</label><input id="fn" maxlength="200"></div>
+        <p class="muted" id="hint"></p>
+        <button class="primary">Registra</button>
+        <div id="fmsg" class="msg"></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Situazione conti</h2>
+      <table><thead><tr><th>Conto</th><th class="num">Saldo</th></tr></thead><tbody>
+      ${FUNDS.map(a=>`<tr><td>${esc(a)}</td><td class="num">${eur(b[a])}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td>Totale cassa del campo</td><td class="num">${eur(total(b))}</td></tr></tfoot></table>
+    </div>`;
+  const hint = () => $('#hint').textContent = $('#fa').value === SPESE
+    ? `“${SPESE}” sottrae l’importo dal conto ${PRO} (saldo attuale ${eur(b[PRO])}).` : '';
+  $('#fa').onchange = hint; hint();
+  $('#f').onsubmit = ev => {
+    ev.preventDefault();
+    const amount = round(parseFloat($('#fm').value)), account = $('#fa').value;
+    const msg = $('#fmsg');
+    if (!(amount > 0)) { msg.className='msg err'; msg.textContent='Inserisci un importo valido.'; return; }
+    if (account === SPESE && amount > b[PRO] + 1e-9) { msg.className='msg err'; msg.textContent=`Saldo di ${PRO} insufficiente (${eur(b[PRO])}).`; return; }
+    db.entries.push({ id: db.seq++, date: $('#fd').value, account, amount, note: $('#fn').value.trim(), by: session.name });
+    save(); vConti();
+    $('#fmsg').className='msg ok'; $('#fmsg').textContent='Registrazione salvata.';
+  };
+}
+
+/* ---------- 2. Rendiconto ---------- */
+function vRendiconto() {
+  const admin = session.role === 'admin';
+  const rows = FUNDS.map(a => {
+    const es = db.entries.filter(e => e.account === a);
+    return { a, versato: round(es.filter(e=>e.amount>0).reduce((s,e)=>s+e.amount,0)),
+             prelevato: round(-es.filter(e=>e.amount<0).reduce((s,e)=>s+e.amount,0)) };
+  });
+  const { b, spese } = balances();
+  $('#view').innerHTML = `
+    <div class="card">
+      <h2>Rendiconto del Campo</h2>
+      <p class="muted">${admin ? 'Come amministratore puoi correggere o eliminare le registrazioni dal dettaglio di ciascun conto.' : 'Solo l’amministratore può modificare i numeri.'}</p>
+      <table><thead><tr><th>Conto</th><th class="num">Totale versato</th><th class="num">Spese / prelievi</th><th class="num">Saldo</th><th></th></tr></thead><tbody>
+      ${rows.map(r => {
+        const out = r.a === PRO ? round(spese + r.prelevato) : r.prelevato;
+        return `<tr><td>${esc(r.a)}</td><td class="num">${eur(r.versato)}</td><td class="num">${eur(out)}</td><td class="num">${eur(b[r.a])}</td>
+        <td><button class="small" data-d="${esc(r.a)}">Dettaglio</button></td></tr>`;}).join('')}
+      <tr><td>${SPESE}</td><td class="num">—</td><td class="num">${eur(spese)}</td><td class="num">(a carico di ${PRO})</td>
+        <td><button class="small" data-d="${SPESE}">Dettaglio</button></td></tr>
+      </tbody><tfoot><tr><td>Totale cassa del campo</td><td class="num">${eur(rows.reduce((s,r)=>s+r.versato,0))}</td><td class="num">${eur(spese + rows.reduce((s,r)=>s+r.prelevato,0))}</td><td class="num">${eur(total(b))}</td><td></td></tr></tfoot></table>
+      <p class="noprint"><button class="small" onclick="window.print()">Stampa</button></p>
+    </div>`;
+  $('#view').querySelectorAll('[data-d]').forEach(btn => btn.onclick = () => dettaglio(btn.dataset.d));
+}
+
+function dettaglio(account) {
+  const admin = session.role === 'admin';
+  const es = db.entries.filter(e => e.account === account).sort((x,y)=>x.date.localeCompare(y.date)||x.id-y.id);
+  modal(`<h2>${esc(account)}</h2>
+    ${es.length ? `<table><thead><tr><th>Data</th><th class="num">Importo</th>${admin?'<th></th>':''}</tr></thead><tbody>
+    ${es.map(e=>`<tr><td>${fdate(e.date)}${e.closingId?' <span class="muted">(chiusura)</span>':''}</td>
+      <td class="num">${admin && !e.closingId ? `<input type="number" step="0.01" value="${e.amount}" data-edit="${e.id}" style="width:110px;text-align:right">` : eur(e.amount)}</td>
+      ${admin?`<td>${e.closingId?'':`<button class="small danger" data-del="${e.id}">Elimina</button>`}</td>`:''}</tr>`).join('')}
+    </tbody></table>` : '<p class="muted">Nessuna registrazione.</p>'}
+    ${admin && es.length ? '<p class="msg err" id="dmsg"></p><p class="muted">Modifica un importo e premi Invio per salvare.</p>' : ''}`);
+  const msg = t => { const m = $('#dmsg'); if (m) m.textContent = t; };
+  const valid = list => { const { b } = balances(list); return FUNDS.every(a => b[a] > -0.005); };
+  document.querySelectorAll('[data-edit]').forEach(inp => inp.onchange = () => {
+    const v = round(parseFloat(inp.value)), id = +inp.dataset.edit;
+    if (!(v > 0)) return msg('Importo non valido.');
+    const next = db.entries.map(e => e.id === id ? { ...e, amount: v } : e);
+    if (!valid(next)) return msg('La modifica renderebbe negativo il saldo di un conto.');
+    db.entries = next; save(); closeModal(); dettaglio(account); go(view);
+  });
+  document.querySelectorAll('[data-del]').forEach(btn => btn.onclick = () => {
+    if (!confirm('Eliminare questa registrazione?')) return;
+    const next = db.entries.filter(e => e.id !== +btn.dataset.del);
+    if (!valid(next)) return msg('L’eliminazione renderebbe negativo il saldo di un conto.');
+    db.entries = next; save(); closeModal(); dettaglio(account); go(view);
+  });
+}
+
+/* ---------- 3. Prima Nota ---------- */
+function vNota() {
+  const es = [...db.entries].sort((x,y)=>y.date.localeCompare(x.date)||y.id-x.id);
+  $('#view').innerHTML = `<div class="card"><h2>Registrazione Prima Nota</h2>
+    ${es.length ? `<table><thead><tr><th>Registrazione</th><th>Conto</th><th class="num">Importo</th></tr></thead><tbody>
+    ${es.map(e=>`<tr><td><button class="link" data-id="${e.id}">Registrazione del ${fdate(e.date)}</button></td><td>${esc(e.account)}</td>
+      <td class="num">${e.account===SPESE?'−':''}${eur(e.amount)}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td colspan="2">Totale cassa del campo</td><td class="num">${eur(total(balances().b))}</td></tr></tfoot></table>`
+    : '<p class="muted">Nessuna registrazione ancora.</p>'}</div>`;
+  $('#view').querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
+    const e = db.entries.find(x => x.id === +b.dataset.id);
+    const c = e.closingId && db.closings.find(x => x.id === e.closingId);
+    modal(`<h2>Registrazione del ${fdate(e.date)}</h2><dl>
+      <dt>Conto</dt><dd>${esc(e.account)}</dd>
+      <dt>Importo</dt><dd>${e.account===SPESE?'−':''}${eur(e.amount)}</dd>
+      <dt>Tipo</dt><dd>${e.closingId?'Prelievo per chiusura cassa':e.account===SPESE?`Spesa (a carico di ${PRO})`:'Versamento'}</dd>
+      ${e.note?`<dt>Nota</dt><dd>${esc(e.note)}</dd>`:''}
+      ${c?`<dt>Bonifico</dt><dd>${fdate(c.date)} – ${esc(c.by)} – ${esc(c.bank)}</dd>`:''}
+      <dt>Inserita da</dt><dd>${esc(e.by||'')}</dd></dl>`);
+  });
+}
+
+/* ---------- 4. Chiusura cassa annua ---------- */
+function vChiusura() {
+  const { b } = balances();
+  $('#view').innerHTML = `<div class="card"><h2>Chiusura Cassa Annua</h2>
+    <form id="cf">
+      <div class="grid">
+        <div><label>Data del bonifico</label><input type="date" id="cd" value="${today()}" required></div>
+        <div><label>Nome di chi ha fatto il bonifico</label><input id="cn" required></div>
+        <div><label>Istituto di credito</label><input id="cb" required></div>
+      </div>
+      <table style="margin-top:16px"><thead><tr><th>Conto</th><th class="num">Somma da togliere (€)</th><th class="num">In cassa</th></tr></thead><tbody>
+      ${FUNDS.map((a,i)=>`<tr><td>${esc(a)}</td>
+        <td><input type="number" class="w" data-i="${i}" min="0" step="0.01" max="${b[a]}" placeholder="0,00" style="text-align:right"></td>
+        <td><input readonly value="${eur(b[a])}" style="text-align:right" tabindex="-1"></td></tr>`).join('')}
+      </tbody><tfoot><tr><td>Totale che si sta togliendo</td><td class="num" id="ct">${eur(0)}</td><td class="num">${eur(total(b))}</td></tr></tfoot></table>
+      <div id="cmsg" class="msg err"></div>
+      <button class="primary" style="margin-top:12px">Registra chiusura</button>
+    </form>
+    ${db.closings.length ? `<h2 style="margin-top:24px">Chiusure precedenti</h2><table><thead><tr><th>Data bonifico</th><th>Eseguito da</th><th>Istituto</th><th class="num">Totale</th></tr></thead><tbody>
+    ${[...db.closings].reverse().map(c=>`<tr><td>${fdate(c.date)}</td><td>${esc(c.by)}</td><td>${esc(c.bank)}</td><td class="num">${eur(c.total)}</td></tr>`).join('')}</tbody></table>` : ''}
+  </div>`;
+  const inputs = [...document.querySelectorAll('.w')];
+  const sum = () => round(inputs.reduce((s,i)=>s+(parseFloat(i.value)||0),0));
+  inputs.forEach(i => i.oninput = () => $('#ct').textContent = eur(sum()));
+  $('#cf').onsubmit = ev => {
+    ev.preventDefault();
+    const msg = $('#cmsg'); msg.className = 'msg err';
+    const items = inputs.map(i => ({ account: FUNDS[+i.dataset.i], amount: round(parseFloat(i.value)||0) })).filter(x => x.amount !== 0);
+    if (items.some(x => x.amount < 0)) return msg.textContent = 'Gli importi non possono essere negativi.';
+    const bad = items.find(x => x.amount > b[x.account] + 1e-9);
+    if (bad) return msg.textContent = `Importo superiore alla cassa per “${bad.account}”.`;
+    if (!items.length) return msg.textContent = 'Inserisci almeno una somma da togliere.';
+    const tot = round(items.reduce((s,x)=>s+x.amount,0));
+    if (!confirm(`Registrare la chiusura per un totale di ${eur(tot)}? I saldi verranno ridotti.`)) return;
+    const id = db.seq++;
+    const date = $('#cd').value;
+    db.closings.push({ id, date, by: $('#cn').value.trim(), bank: $('#cb').value.trim(), total: tot });
+    items.forEach(x => db.entries.push({ id: db.seq++, date, account: x.account, amount: -x.amount, note: 'Chiusura cassa annua', closingId: id, by: session.name }));
+    save(); vChiusura();
+    $('#cmsg').className = 'msg ok'; $('#cmsg').textContent = `Chiusura registrata: ${eur(tot)}.`;
+  };
+}
+</script>
 </body>
 </html>
