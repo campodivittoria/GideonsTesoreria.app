@@ -21,6 +21,7 @@
   #menuBtn { background:transparent; border:0; color:#fff; width:40px; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   #menuBtn:hover { background:rgba(255,255,255,.15); }
   #menuBtn span { display:block; width:22px; height:2px; background:#fff; border-radius:2px; box-shadow:0 -7px 0 #fff, 0 7px 0 #fff; }
+  #demoBar { background:#fff3cd; color:#6b4e00; border-bottom:1px solid #ffe08a; padding:8px 16px; font-size:.85rem; text-align:center; }
   #shareBtn { background:transparent; border:0; color:#fff; width:40px; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   #shareBtn:hover { background:rgba(255,255,255,.15); }
   #shareBtn svg { width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
@@ -139,6 +140,7 @@
     <h1 id="pageTitle">Tesoreria Campo Gedeoni</h1>
     <button id="shareBtn" aria-label="Condividi l'app" title="Condividi"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
   </header>
+  <div id="demoBar" class="hidden">Dati di prova – account <b>test</b>. I numeri sono inventati e vengono rigenerati a ogni accesso.</div>
   <div id="scrim"></div>
   <nav id="nav" aria-label="Menu principale">
     <div class="brand"><img src="icon.svg" alt="" width="44" height="44" style="border-radius:10px"><div><b>Tesoreria</b><span>Campo Gedeoni</span></div></div>
@@ -160,7 +162,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '2.6'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '2.7'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -181,10 +183,14 @@ async function checkUpdate() {
 const DEFAULT_USERS = { user: { name: 'campodivittoria', pw: 'vittoriaT' }, admin: { name: 'amministratore', pw: '030287' } };
 const USERS_KEY = 'gedeoni_utenti';
 function users() { try { const u = JSON.parse(localStorage.getItem(USERS_KEY)); if (u && u.user && u.admin) return u; } catch(e){} return DEFAULT_USERS; }
+const DEMO_USER = { name: 'test', pw: 'test' };
+// il nome utente non distingue maiuscole/minuscole (la tastiera del telefono mette la prima lettera maiuscola)
+const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 function findUser(name) {
   const u = users();
-  if (name === u.admin.name) return { role: 'admin', pw: u.admin.pw };
-  if (name === u.user.name) return { role: 'user', pw: u.user.pw };
+  if (sameName(name, u.admin.name)) return { role: 'admin', pw: u.admin.pw, name: u.admin.name };
+  if (sameName(name, u.user.name)) return { role: 'user', pw: u.user.pw, name: u.user.name };
+  if (sameName(name, DEMO_USER.name)) return { role: 'user', pw: DEMO_USER.pw, name: DEMO_USER.name, demo: true };
   return null;
 }
 const SPESE = 'Spese del Campo';
@@ -204,16 +210,18 @@ const today = () => new Date().toISOString().slice(0,10);
 const round = n => Math.round(n*100)/100;
 const sum = arr => round(arr.reduce((s,n) => s + (n||0), 0));
 
+const DB_KEY = 'gedeoni_tesoreria', DEMO_KEY = 'gedeoni_tesoreria_demo';
 let db = load();
 let session = null;
 let view = 'home';
+const storageKey = () => session && session.demo ? DEMO_KEY : DB_KEY;
 
 /* Dati:
    regs:     [{id, date, place, items:{conto: importo}, by}]      registrazioni (una per riunione/luogo)
    closings: [{id, date, by, bank, items:{conto: importo}, total}] chiusure cassa annue */
-function load() {
+function load(key = DB_KEY) {
   try {
-    const d = JSON.parse(localStorage.getItem('gedeoni_tesoreria'));
+    const d = JSON.parse(localStorage.getItem(key));
     if (d && d.regs) return d;
     if (d && d.entries) return migrate(d);
   } catch(e){}
@@ -228,7 +236,51 @@ function migrate(old) {
   }
   return db2;
 }
-function save() { try { localStorage.setItem('gedeoni_tesoreria', JSON.stringify(db)); } catch(e){ alert('Impossibile salvare i dati su questo dispositivo.'); } }
+function save() { try { localStorage.setItem(storageKey(), JSON.stringify(db)); } catch(e){ alert('Impossibile salvare i dati su questo dispositivo.'); } }
+
+/* ---------- dati di prova per l'account test ---------- */
+function demoData() {
+  let seed = 20261021; // generatore pseudo-casuale con seme fisso: stessi dati a ogni accesso
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  const pick = arr => arr[Math.floor(rnd() * arr.length)];
+  const amt = (min, max) => Math.round((min + rnd() * (max - min)) * 2) / 2; // multipli di 0,50
+  const PLACES = ['Chiesa Evangelica di Vittoria', 'Chiesa di Comiso', 'Chiesa di Ragusa', 'Chiesa di Modica', 'Chiesa di Scicli',
+    'Chiesa di Gela', 'Chiesa di Niscemi', 'Chiesa di Acate', 'Riunione mensile del Campo', 'Cena di preghiera', 'Colazione di preghiera',
+    'Convention regionale', 'Chiesa di Santa Croce Camerina', 'Chiesa di Ispica', 'Chiesa di Pozzallo'];
+  const NAMES = ['Giuseppe Russo', 'Salvatore Vitale', 'Antonio Greco', 'Francesco Puglisi'];
+  const BANKS = ['Banca Agricola Popolare di Ragusa', 'Intesa Sanpaolo', 'UniCredit', 'Poste Italiane'];
+  const d = { regs: [], closings: [], seq: 1 };
+  // 100 registrazioni distribuite su 24 mesi (ottobre 2024 → settembre 2026)
+  const start = new Date(2024, 9, 1);
+  for (let i = 0; i < 100; i++) {
+    const day = new Date(start); day.setDate(day.getDate() + Math.floor(i * 7.3 + rnd() * 5));
+    const date = day.toISOString().slice(0, 10);
+    const items = { [PRO]: amt(40, 320) };
+    if (rnd() < .8) items['Offerte Gedeoni'] = amt(20, 180);
+    if (rnd() < .6) items['Offerte Ausiliarie'] = amt(10, 90);
+    if (rnd() < .5) items['PWT Gedeoni'] = amt(10, 120);
+    if (rnd() < .35) items['PWT Ausiliarie'] = amt(5, 60);
+    if (rnd() < .25) items['Fondo Barnaba Gedeoni'] = amt(10, 80);
+    if (rnd() < .15) items['Fondo Barnaba Ausiliarie'] = amt(5, 50);
+    if (rnd() < .4) items['Offerte delle Chiese'] = amt(50, 400);
+    if (rnd() < .2) items['Offerte Amico dei Gedeoni'] = amt(20, 150);
+    if (rnd() < .3) items['Gideons Card'] = amt(10, 60);
+    if (rnd() < .12) items['Offerte per la Convention'] = amt(30, 200);
+    if (rnd() < .1) items['Offerte nuovi Gedeoni'] = amt(50, 100);
+    if (rnd() < .08) items['Offerte nuovi Ausiliarie'] = amt(30, 60);
+    if (rnd() < .3) items[SPESE] = amt(10, Math.min(120, items[PRO]));
+    d.regs.push({ id: d.seq++, date, place: pick(PLACES), items, by: 'test' });
+  }
+  // una chiusura di cassa a fine 2024 e una a fine 2025: toglie circa il 90% di ogni conto
+  for (const [year, idx] of [['2024', 0], ['2025', 1]]) {
+    const date = `${year}-12-31`;
+    const { b } = balances(d.regs.filter(r => r.date <= date), d.closings.filter(c => c.date <= date));
+    const items = {};
+    for (const a of FUNDS) { const v = Math.floor(b[a] * 0.9); if (v > 0) items[a] = v; }
+    d.closings.push({ id: d.seq++, date, by: NAMES[idx], bank: BANKS[idx], items, total: sum(Object.values(items)) });
+  }
+  return d;
+}
 
 function balances(regs = db.regs, closings = db.closings) {
   const b = Object.fromEntries(FUNDS.map(a => [a, 0]));
@@ -249,20 +301,25 @@ const valid = (regs = db.regs, closings = db.closings) => { const { b } = balanc
 
 /* ---------- login ---------- */
 const SESSION_KEY = 'gedeoni_sessione';
-function enter(s) {
+// fresh: true rigenera i dati di prova (nuovo accesso con l'account test)
+function enter(s, fresh) {
   session = s;
+  if (s.demo) { const d = load(DEMO_KEY); db = fresh || !d.regs.length ? demoData() : d; save(); }
+  else db = load();
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  $('#who').textContent = session.name + (session.role === 'admin' ? ' (amministratore)' : '');
+  $('#who').textContent = session.name + (session.role === 'admin' ? ' (amministratore)' : '') + (session.demo ? ' (dati di prova)' : '');
   $('#nav [data-v=impost]').classList.toggle('hidden', session.role !== 'admin');
+  $('#demoBar').classList.toggle('hidden', !session.demo);
   $('#lp').value = ''; $('#loginMsg').textContent = '';
   go('home');
 }
 $('#loginForm').addEventListener('submit', ev => {
   ev.preventDefault();
-  const name = $('#lu').value.trim(), u = findUser(name);
+  const u = findUser($('#lu').value);
   if (u && u.pw === $('#lp').value) {
-    try { if ($('#lr').checked) localStorage.setItem(SESSION_KEY, JSON.stringify({ name, role: u.role })); else localStorage.removeItem(SESSION_KEY); } catch(e){}
-    enter({ name, role: u.role });
+    const s = { name: u.name, role: u.role, demo: !!u.demo };
+    try { if ($('#lr').checked) localStorage.setItem(SESSION_KEY, JSON.stringify(s)); else localStorage.removeItem(SESSION_KEY); } catch(e){}
+    enter(s, true);
   } else $('#loginMsg').textContent = 'Utente o password non corretti.';
 });
 $('#logout').onclick = () => { closeMenu(); session = null; try { localStorage.removeItem(SESSION_KEY); } catch(e){} $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); };
@@ -584,7 +641,8 @@ function vImpostazioni() {
     const un = $('#un').value.trim(), up = $('#up').value, up2 = $('#up2').value;
     const an = $('#an').value.trim(), ap = $('#ap').value, ap2 = $('#ap2').value;
     if (!un || !an) return msg('I nomi utente non possono essere vuoti.');
-    if (un === an) return msg('I due nomi utente devono essere diversi.');
+    if (sameName(un, an)) return msg('I due nomi utente devono essere diversi.');
+    if (sameName(un, DEMO_USER.name) || sameName(an, DEMO_USER.name)) return msg(`“${DEMO_USER.name}” è riservato all’account di prova.`);
     if ((up && up.length < 4) || (ap && ap.length < 4)) return msg('Le password devono avere almeno 4 caratteri.');
     if (up !== up2) return msg('Le due password nuove dell’utente generico non coincidono.');
     if (ap !== ap2) return msg('Le due password nuove dell’amministratore non coincidono.');
@@ -648,7 +706,7 @@ function vChiusura() {
 // riapre la sessione salvata con "Rimani connesso" (in fondo: tutte le funzioni e costanti sono già definite)
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e){}
-if (saved && findUser(saved.name)) enter({ name: saved.name, role: findUser(saved.name).role });
+if (saved && findUser(saved.name)) { const u = findUser(saved.name); enter({ name: u.name, role: u.role, demo: !!u.demo }); }
 
 checkUpdate();
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
