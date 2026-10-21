@@ -3,6 +3,11 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 2.6 – 21/10/2026
+- Pulsante **Condividi** in alto a destra (al posto dell'icona): apre la scheda di condivisione del
+  telefono (WhatsApp, Messaggi, Mail, copia link…); dove non c'è, una finestra con Copia link,
+  WhatsApp, SMS ed Email.
+
 ## 2.5 – 21/10/2026
 - Impostazioni: l'amministratore può di nuovo modificare nome utente e password di entrambi gli
   account (come nella 2.3), con la ripetizione della nuova password per ciascuno.

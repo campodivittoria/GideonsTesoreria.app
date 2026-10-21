@@ -21,6 +21,14 @@
   #menuBtn { background:transparent; border:0; color:#fff; width:40px; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   #menuBtn:hover { background:rgba(255,255,255,.15); }
   #menuBtn span { display:block; width:22px; height:2px; background:#fff; border-radius:2px; box-shadow:0 -7px 0 #fff, 0 7px 0 #fff; }
+  #shareBtn { background:transparent; border:0; color:#fff; width:40px; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  #shareBtn:hover { background:rgba(255,255,255,.15); }
+  #shareBtn svg { width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .share-list { display:flex; flex-direction:column; gap:8px; margin:12px 0 4px; }
+  .share-list a, .share-list button { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); text-decoration:none; font:inherit; cursor:pointer; text-align:left; width:100%; }
+  .share-list a:hover, .share-list button:hover { background:#eef3fa; }
+  .share-list .ico { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; flex:none; }
+  .share-url { font-size:.8rem; word-break:break-all; background:#eef1f5; padding:8px 10px; border-radius:6px; }
   /* Menu a tendina laterale */
   #scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:20; opacity:0; pointer-events:none; transition:opacity .2s; }
   nav { position:fixed; top:0; left:0; bottom:0; width:280px; max-width:85vw; background:var(--brand-d); color:#fff; z-index:21; display:flex; flex-direction:column; transform:translateX(-100%); transition:transform .25s ease; box-shadow:4px 0 16px rgba(0,0,0,.3); }
@@ -129,7 +137,7 @@
   <header>
     <button id="menuBtn" aria-label="Apri menu" aria-controls="nav" aria-expanded="false"><span></span></button>
     <h1 id="pageTitle">Tesoreria Campo Gedeoni</h1>
-    <img src="icon.svg" alt="" width="32" height="32" style="border-radius:7px">
+    <button id="shareBtn" aria-label="Condividi l'app" title="Condividi"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
   </header>
   <div id="scrim"></div>
   <nav id="nav" aria-label="Menu principale">
@@ -152,7 +160,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '2.5'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '2.6'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -274,6 +282,32 @@ function go(v) {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   if (v === 'impost' && session.role !== 'admin') v = view = 'home';
   ({home: vHome, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura, impost: vImpostazioni})[v]();
+}
+
+/* ---------- condividi ---------- */
+const APP_URL = location.origin.startsWith('http') ? location.origin + location.pathname.replace(/index\.html$/, '') : 'https://campodivittoria.github.io/GideonsTesoreria.app/';
+const SHARE_TEXT = 'App Tesoreria Campo Gedeoni';
+$('#shareBtn').onclick = async () => {
+  if (navigator.share) {
+    try { await navigator.share({ title: SHARE_TEXT, text: SHARE_TEXT, url: APP_URL }); return; } catch(e) { if (e.name === 'AbortError') return; }
+  }
+  shareFallback();
+};
+function shareFallback() {
+  const u = encodeURIComponent(APP_URL), t = encodeURIComponent(SHARE_TEXT + ' ' + APP_URL);
+  modal(`<h2>Condividi l'app</h2>
+    <div class="share-url">${esc(APP_URL)}</div>
+    <div class="share-list">
+      <button id="copyLink"><span class="ico" style="background:#1f4e8c">⧉</span><span>Copia link</span></button>
+      <a href="https://wa.me/?text=${t}" target="_blank" rel="noopener"><span class="ico" style="background:#25d366">W</span><span>WhatsApp</span></a>
+      <a href="sms:?&body=${t}"><span class="ico" style="background:#1b7f4b">✉</span><span>Messaggi (SMS)</span></a>
+      <a href="mailto:?subject=${encodeURIComponent(SHARE_TEXT)}&body=${t}"><span class="ico" style="background:#4a5a6e">@</span><span>Email</span></a>
+    </div>`);
+  $('#copyLink').onclick = async () => {
+    const lbl = $('#copyLink span:last-child');
+    try { await navigator.clipboard.writeText(APP_URL); lbl.textContent = 'Link copiato!'; }
+    catch(e) { const ta = document.createElement('textarea'); ta.value = APP_URL; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); lbl.textContent = 'Link copiato!'; } catch(e2) { lbl.textContent = 'Copia manualmente il link qui sopra'; } ta.remove(); }
+  };
 }
 
 /* ---------- modal ---------- */
