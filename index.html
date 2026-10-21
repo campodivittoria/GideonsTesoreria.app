@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tesoreria Campo Gedeoni</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f4e8c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tesoreria">
 <style>
   :root { --bg:#f4f6f9; --card:#fff; --ink:#1d2733; --muted:#6b7785; --brand:#1f4e8c; --brand-d:#163a69; --line:#dde3ea; --ok:#1b7f4b; --bad:#b3261e; }
   * { box-sizing: border-box; }
@@ -47,6 +54,7 @@
 <body>
 
 <section id="login" class="card">
+  <img src="icon.svg" alt="" width="88" height="88" style="display:block;margin:0 auto 12px">
   <h2>Tesoreria del Campo</h2>
   <p class="muted">Gedeoni Internazionali – accedi per continuare</p>
   <form id="loginForm">
@@ -59,6 +67,7 @@
 
 <div id="app" class="hidden">
   <header>
+    <img src="icon.svg" alt="" width="32" height="32" style="border-radius:7px">
     <h1>Tesoreria Campo Gedeoni</h1>
     <span class="who" id="who"></span>
     <button class="small" id="logout">Esci</button>
