@@ -60,6 +60,17 @@
   .modal { background:#fff; border-radius:10px; padding:20px; max-width:480px; width:100%; max-height:90vh; overflow:auto; }
   .modal dl { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:12px 0; }
   .modal dt { color:var(--muted); } .modal dd { margin:0; }
+  .modal.wide { max-width:560px; }
+  .modal form table input { width:120px; }
+  .modal .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+  tr.spese td { background:#fff7f6; }
+  .bigbtn { display:block; width:100%; padding:16px; font-size:1.15rem; font-weight:600; margin-bottom:16px; border-radius:10px; box-shadow:0 3px 8px rgba(31,78,140,.3); }
+  .dash { display:grid; grid-template-columns:minmax(200px,260px) 1fr; gap:20px; align-items:center; }
+  @media (max-width:640px) { .dash { grid-template-columns:1fr; } .donut { max-width:260px; margin:0 auto; } }
+  .donut { width:100%; height:auto; }
+  .legend td { padding:5px 6px; font-size:.9rem; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:8px; vertical-align:middle; }
+  .scroll { overflow-x:auto; }
   #login { max-width:360px; margin:12vh auto; }
   .hidden { display:none !important; }
   @media print { header button, nav, .noprint { display:none !important; } }
@@ -88,7 +99,7 @@
   <div id="scrim"></div>
   <nav id="nav" aria-label="Menu principale">
     <div class="brand"><img src="icon.svg" alt="" width="44" height="44" style="border-radius:10px"><div><b>Tesoreria</b><span>Campo Gedeoni</span></div></div>
-    <button data-v="conti"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Conti</button>
+    <button data-v="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/></svg>Riepilogo</button>
     <button data-v="rendiconto"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20v-8M11 20V6M16 20v-5M21 20V9"/></svg>Rendiconto del Campo</button>
     <button data-v="nota"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Registrazione Prima Nota</button>
     <button data-v="chiusura"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg>Chiusura Cassa Annua</button>
@@ -113,6 +124,7 @@ const ACCOUNTS = ['Pro Campo','Offerte Gedeoni','Offerte Ausiliarie','PWT Gedeon
   'Fondo Barnaba Gedeoni','Fondo Barnaba Ausiliarie','Offerte delle Chiese','Offerte Amico dei Gedeoni',
   'Gideons Card','Offerte per la Convention','Offerte nuovi Gedeoni','Offerte nuovi Ausiliarie', SPESE];
 const FUNDS = ACCOUNTS.filter(a => a !== SPESE); // conti che detengono denaro
+const COLORS = ['#1f4e8c','#1b7f4b','#d9a420','#a8323c','#2c8c9e','#6a4c93','#e07a1f','#4a5a6e','#8fb339','#c2185b','#00796b','#5d4037','#7986cb'];
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -120,28 +132,47 @@ const eur = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}
 const fdate = d => d ? d.split('-').reverse().join('/') : '';
 const today = () => new Date().toISOString().slice(0,10);
 const round = n => Math.round(n*100)/100;
+const sum = arr => round(arr.reduce((s,n) => s + (n||0), 0));
 
 let db = load();
 let session = null;
-let view = 'conti';
+let view = 'home';
 
+/* Dati:
+   regs:     [{id, date, place, items:{conto: importo}, by}]      registrazioni (una per riunione/luogo)
+   closings: [{id, date, by, bank, items:{conto: importo}, total}] chiusure cassa annue */
 function load() {
-  try { const d = JSON.parse(localStorage.getItem('gedeoni_tesoreria')); if (d && d.entries) return d; } catch(e){}
-  return { entries: [], closings: [], seq: 1 };
+  try {
+    const d = JSON.parse(localStorage.getItem('gedeoni_tesoreria'));
+    if (d && d.regs) return d;
+    if (d && d.entries) return migrate(d);
+  } catch(e){}
+  return { regs: [], closings: [], seq: 1 };
+}
+// Converte il vecchio formato (una riga per conto) nel nuovo (registrazione con più conti)
+function migrate(old) {
+  const db2 = { regs: [], closings: old.closings.map(c => ({ ...c, items: {} })), seq: old.seq || 1 };
+  for (const e of old.entries) {
+    if (e.closingId) { const c = db2.closings.find(x => x.id === e.closingId); if (c) c.items[e.account] = round((c.items[e.account]||0) - e.amount); }
+    else db2.regs.push({ id: e.id, date: e.date, place: e.note || '', items: { [e.account]: e.amount }, by: e.by });
+  }
+  return db2;
 }
 function save() { try { localStorage.setItem('gedeoni_tesoreria', JSON.stringify(db)); } catch(e){ alert('Impossibile salvare i dati su questo dispositivo.'); } }
 
-// Una registrazione: {id, date, account, amount (>0 versamento/spesa; <0 prelievo di chiusura), note, closingId?}
-function balances(entries = db.entries) {
+function balances(regs = db.regs, closings = db.closings) {
   const b = Object.fromEntries(FUNDS.map(a => [a, 0]));
   let spese = 0;
-  for (const e of entries) {
-    if (e.account === SPESE) { b[PRO] -= e.amount; spese += e.amount; }
-    else b[e.account] += e.amount;
+  for (const r of regs) for (const [a, v] of Object.entries(r.items)) {
+    if (a === SPESE) { b[PRO] -= v; spese += v; } else b[a] += v;
   }
-  return { b, spese };
+  for (const c of closings) for (const [a, v] of Object.entries(c.items)) b[a] -= v;
+  for (const a of FUNDS) b[a] = round(b[a]);
+  return { b, spese: round(spese) };
 }
-const total = b => round(FUNDS.reduce((s,a) => s + b[a], 0));
+const total = b => sum(FUNDS.map(a => b[a]));
+const regTotal = r => sum(FUNDS.map(a => r.items[a]));       // entrate della registrazione
+const regNet = r => round(regTotal(r) - (r.items[SPESE]||0)); // al netto delle spese
 
 /* ---------- login ---------- */
 $('#loginForm').addEventListener('submit', ev => {
@@ -152,14 +183,14 @@ $('#loginForm').addEventListener('submit', ev => {
     $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
     $('#who').textContent = session.name + (session.role === 'admin' ? ' (amministratore)' : '');
     $('#lp').value = ''; $('#loginMsg').textContent = '';
-    go('conti');
+    go('home');
   } else $('#loginMsg').textContent = 'Utente o password non corretti.';
 });
 $('#logout').onclick = () => { closeMenu(); session = null; $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); };
 $('#nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { go(b.dataset.v); closeMenu(); } });
 
 /* ---------- menu a tendina ---------- */
-const TITLES = { conti: 'Conti', rendiconto: 'Rendiconto del Campo', nota: 'Registrazione Prima Nota', chiusura: 'Chiusura Cassa Annua' };
+const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', nota: 'Registrazione Prima Nota', chiusura: 'Chiusura Cassa Annua' };
 function openMenu() { document.body.classList.add('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'true'); }
 function closeMenu() { document.body.classList.remove('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'false'); }
 $('#menuBtn').onclick = () => document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
@@ -170,76 +201,106 @@ function go(v) {
   view = v;
   $('#pageTitle').innerHTML = `${esc(TITLES[v])}<small>Tesoreria Campo Gedeoni</small>`;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
-  ({conti: vConti, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura})[v]();
+  ({home: vHome, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura})[v]();
 }
 
 /* ---------- modal ---------- */
-function modal(html) {
-  $('#modalRoot').innerHTML = `<div class="overlay"><div class="modal">${html}<div style="text-align:right"><button class="primary" id="mClose">Chiudi</button></div></div></div>`;
-  $('#mClose').onclick = closeModal;
+function modal(html, { close = true } = {}) {
+  $('#modalRoot').innerHTML = `<div class="overlay"><div class="modal${html.includes('id="rf"') ? ' wide' : ''}">${html}${close ? '<div style="text-align:right"><button class="primary" id="mClose">Chiudi</button></div>' : ''}</div></div>`;
+  if (close) $('#mClose').onclick = closeModal;
 }
 function closeModal() { $('#modalRoot').innerHTML = ''; }
 
-/* ---------- 1. Conti (inserimento) ---------- */
-function vConti() {
+/* ---------- grafico a ciambella (SVG) ---------- */
+function donut(b) {
+  const tot = total(b), R = 80, r = 52, C = 2 * Math.PI * ((R + r) / 2), w = R - r;
+  let off = 0, segs = '';
+  FUNDS.forEach((a, i) => {
+    const v = Math.max(b[a], 0); if (!v || tot <= 0) return;
+    const len = C * v / tot;
+    segs += `<circle r="${(R + r) / 2}" cx="100" cy="100" fill="none" stroke="${COLORS[i]}" stroke-width="${w}" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 100 100)"><title>${esc(a)}: ${eur(v)}</title></circle>`;
+    off += len;
+  });
+  if (!segs) segs = `<circle r="${(R + r) / 2}" cx="100" cy="100" fill="none" stroke="#dde3ea" stroke-width="${w}"/>`;
+  return `<svg viewBox="0 0 200 200" class="donut" role="img" aria-label="Ripartizione della cassa">${segs}
+    <text x="100" y="94" text-anchor="middle" font-size="11" fill="#6b7785">TOTALE CASSA</text>
+    <text x="100" y="116" text-anchor="middle" font-size="${tot >= 100000 ? 16 : 20}" font-weight="700" fill="#1d2733">${eur(tot)}</text></svg>`;
+}
+
+/* ---------- 1. Riepilogo (pagina iniziale) ---------- */
+function vHome() {
   const { b } = balances();
+  const tot = total(b);
   $('#view').innerHTML = `
+    <button class="primary bigbtn" id="newReg">＋ Nuova Registrazione</button>
     <div class="card">
-      <h2>Nuova registrazione</h2>
-      <form id="f">
-        <div class="grid">
-          <div><label>Data</label><input type="date" id="fd" value="${today()}" required></div>
-          <div><label>Conto</label><select id="fa">${ACCOUNTS.map(a=>`<option>${esc(a)}</option>`).join('')}</select></div>
-          <div><label>Importo (€)</label><input type="number" id="fm" min="0.01" step="0.01" required></div>
-        </div>
-        <div style="margin-top:12px"><label>Nota (facoltativa)</label><input id="fn" maxlength="200"></div>
-        <p class="muted" id="hint"></p>
-        <button class="primary">Registra</button>
-        <div id="fmsg" class="msg"></div>
-      </form>
-    </div>
-    <div class="card">
-      <h2>Situazione conti</h2>
-      <table><thead><tr><th>Conto</th><th class="num">Saldo</th></tr></thead><tbody>
-      ${FUNDS.map(a=>`<tr><td>${esc(a)}</td><td class="num">${eur(b[a])}</td></tr>`).join('')}
-      </tbody><tfoot><tr><td>Totale cassa del campo</td><td class="num">${eur(total(b))}</td></tr></tfoot></table>
+      <div class="dash">
+        ${donut(b)}
+        <table class="legend"><tbody>
+        ${FUNDS.map((a, i) => `<tr><td><span class="dot" style="background:${COLORS[i]}"></span>${esc(a)}</td><td class="num">${eur(b[a])}</td><td class="num muted">${tot > 0 && b[a] > 0 ? Math.round(b[a] / tot * 100) + '%' : ''}</td></tr>`).join('')}
+        </tbody><tfoot><tr><td>Totale cassa del campo</td><td class="num">${eur(tot)}</td><td></td></tr></tfoot></table>
+      </div>
+      <p class="muted" style="margin:12px 0 0">${db.regs.length} registrazion${db.regs.length === 1 ? 'e' : 'i'}${db.regs.length ? ', ultima il ' + fdate([...db.regs].sort((x, y) => y.date.localeCompare(x.date))[0].date) : ''}.</p>
     </div>`;
-  const hint = () => $('#hint').textContent = $('#fa').value === SPESE
-    ? `“${SPESE}” sottrae l’importo dal conto ${PRO} (saldo attuale ${eur(b[PRO])}).` : '';
-  $('#fa').onchange = hint; hint();
-  $('#f').onsubmit = ev => {
+  $('#newReg').onclick = formRegistrazione;
+}
+
+/* ---------- popup Nuova Registrazione ---------- */
+function formRegistrazione() {
+  const { b } = balances();
+  modal(`<h2>Nuova Registrazione</h2>
+    <form id="rf">
+      <div class="grid">
+        <div><label>Data di registrazione</label><input type="date" id="rd" value="${today()}" required></div>
+        <div><label>Luogo</label><input id="rl" placeholder="es. Chiesa di Vittoria" maxlength="80" required></div>
+      </div>
+      <table style="margin-top:14px"><thead><tr><th>Conto</th><th class="num">Importo (€)</th></tr></thead><tbody>
+      ${ACCOUNTS.map((a, i) => `<tr${a === SPESE ? ' class="spese"' : ''}><td>${esc(a)}${a === SPESE ? `<br><span class="muted">tolte da ${PRO}</span>` : ''}</td>
+        <td><input type="number" class="ri" data-i="${i}" min="0" step="0.01" placeholder="0,00" inputmode="decimal" style="text-align:right;width:120px"></td></tr>`).join('')}
+      </tbody><tfoot>
+        <tr><td>Totale entrate</td><td class="num" id="rt">${eur(0)}</td></tr>
+        <tr id="rnRow" class="hidden"><td>Totale al netto delle spese</td><td class="num" id="rn">${eur(0)}</td></tr>
+      </tfoot></table>
+      <div id="rmsg" class="msg err"></div>
+      <div class="actions"><button type="button" class="small" id="rCancel">Annulla</button><button class="primary">Salva</button></div>
+    </form>`, { close: false });
+  const inputs = [...document.querySelectorAll('.ri')];
+  const read = () => { const items = {}; inputs.forEach(i => { const v = round(parseFloat(i.value)); if (v > 0) items[ACCOUNTS[+i.dataset.i]] = v; }); return items; };
+  const refresh = () => {
+    const it = read(), r = { items: it };
+    $('#rt').textContent = eur(regTotal(r));
+    $('#rnRow').classList.toggle('hidden', !it[SPESE]);
+    $('#rn').textContent = eur(regNet(r));
+  };
+  inputs.forEach(i => i.oninput = refresh);
+  $('#rCancel').onclick = closeModal;
+  $('#rf').onsubmit = ev => {
     ev.preventDefault();
-    const amount = round(parseFloat($('#fm').value)), account = $('#fa').value;
-    const msg = $('#fmsg');
-    if (!(amount > 0)) { msg.className='msg err'; msg.textContent='Inserisci un importo valido.'; return; }
-    if (account === SPESE && amount > b[PRO] + 1e-9) { msg.className='msg err'; msg.textContent=`Saldo di ${PRO} insufficiente (${eur(b[PRO])}).`; return; }
-    db.entries.push({ id: db.seq++, date: $('#fd').value, account, amount, note: $('#fn').value.trim(), by: session.name });
-    save(); vConti();
-    $('#fmsg').className='msg ok'; $('#fmsg').textContent='Registrazione salvata.';
+    const items = read(), msg = $('#rmsg');
+    if (inputs.some(i => i.value && !(parseFloat(i.value) >= 0))) return msg.textContent = 'Controlla gli importi inseriti.';
+    if (!Object.keys(items).length) return msg.textContent = 'Inserisci almeno un importo.';
+    if (items[SPESE] && items[SPESE] > b[PRO] + (items[PRO] || 0) + 1e-9) return msg.textContent = `Le spese superano il disponibile di ${PRO} (${eur(b[PRO] + (items[PRO] || 0))}).`;
+    db.regs.push({ id: db.seq++, date: $('#rd').value, place: $('#rl').value.trim(), items, by: session.name });
+    save(); closeModal(); go(view);
   };
 }
 
 /* ---------- 2. Rendiconto ---------- */
 function vRendiconto() {
   const admin = session.role === 'admin';
-  const rows = FUNDS.map(a => {
-    const es = db.entries.filter(e => e.account === a);
-    return { a, versato: round(es.filter(e=>e.amount>0).reduce((s,e)=>s+e.amount,0)),
-             prelevato: round(-es.filter(e=>e.amount<0).reduce((s,e)=>s+e.amount,0)) };
-  });
   const { b, spese } = balances();
+  const rows = FUNDS.map(a => ({ a,
+    versato: sum(db.regs.map(r => r.items[a])),
+    prelevato: sum(db.closings.map(c => c.items[a])) }));
   $('#view').innerHTML = `
     <div class="card">
       <h2>Rendiconto del Campo</h2>
-      <p class="muted">${admin ? 'Come amministratore puoi correggere o eliminare le registrazioni dal dettaglio di ciascun conto.' : 'Solo l’amministratore può modificare i numeri.'}</p>
-      <table><thead><tr><th>Conto</th><th class="num">Totale versato</th><th class="num">Spese / prelievi</th><th class="num">Saldo</th><th></th></tr></thead><tbody>
-      ${rows.map(r => {
-        const out = r.a === PRO ? round(spese + r.prelevato) : r.prelevato;
-        return `<tr><td>${esc(r.a)}</td><td class="num">${eur(r.versato)}</td><td class="num">${eur(out)}</td><td class="num">${eur(b[r.a])}</td>
-        <td><button class="small" data-d="${esc(r.a)}">Dettaglio</button></td></tr>`;}).join('')}
-      <tr><td>${SPESE}</td><td class="num">—</td><td class="num">${eur(spese)}</td><td class="num">(a carico di ${PRO})</td>
-        <td><button class="small" data-d="${SPESE}">Dettaglio</button></td></tr>
-      </tbody><tfoot><tr><td>Totale cassa del campo</td><td class="num">${eur(rows.reduce((s,r)=>s+r.versato,0))}</td><td class="num">${eur(spese + rows.reduce((s,r)=>s+r.prelevato,0))}</td><td class="num">${eur(total(b))}</td><td></td></tr></tfoot></table>
+      <p class="muted">${admin ? 'Come amministratore puoi correggere o eliminare gli importi dal dettaglio di ciascun conto.' : 'Solo l’amministratore può modificare i numeri.'}</p>
+      <div class="scroll"><table><thead><tr><th>Conto</th><th class="num">Totale versato</th><th class="num">Spese / prelievi</th><th class="num">Saldo</th><th></th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td>${esc(r.a)}</td><td class="num">${eur(r.versato)}</td><td class="num">${eur(r.a === PRO ? round(spese + r.prelevato) : r.prelevato)}</td><td class="num">${eur(b[r.a])}</td>
+        <td><button class="small" data-d="${esc(r.a)}">Dettaglio</button></td></tr>`).join('')}
+      <tr><td>${SPESE}</td><td class="num">—</td><td class="num">${eur(spese)}</td><td class="num muted">a carico di ${PRO}</td><td><button class="small" data-d="${SPESE}">Dettaglio</button></td></tr>
+      </tbody><tfoot><tr><td>Totale cassa del campo</td><td class="num">${eur(sum(rows.map(r => r.versato)))}</td><td class="num">${eur(round(spese + sum(rows.map(r => r.prelevato))))}</td><td class="num">${eur(total(b))}</td><td></td></tr></tfoot></table></div>
       <p class="noprint"><button class="small" onclick="window.print()">Stampa</button></p>
     </div>`;
   $('#view').querySelectorAll('[data-d]').forEach(btn => btn.onclick = () => dettaglio(btn.dataset.d));
@@ -247,50 +308,59 @@ function vRendiconto() {
 
 function dettaglio(account) {
   const admin = session.role === 'admin';
-  const es = db.entries.filter(e => e.account === account).sort((x,y)=>x.date.localeCompare(y.date)||x.id-y.id);
+  const regs = db.regs.filter(r => r.items[account] != null).sort((x, y) => x.date.localeCompare(y.date) || x.id - y.id);
+  const cls = db.closings.filter(c => c.items[account]).sort((x, y) => x.date.localeCompare(y.date));
   modal(`<h2>${esc(account)}</h2>
-    ${es.length ? `<table><thead><tr><th>Data</th><th class="num">Importo</th>${admin?'<th></th>':''}</tr></thead><tbody>
-    ${es.map(e=>`<tr><td>${fdate(e.date)}${e.closingId?' <span class="muted">(chiusura)</span>':''}</td>
-      <td class="num">${admin && !e.closingId ? `<input type="number" step="0.01" value="${e.amount}" data-edit="${e.id}" style="width:110px;text-align:right">` : eur(e.amount)}</td>
-      ${admin?`<td>${e.closingId?'':`<button class="small danger" data-del="${e.id}">Elimina</button>`}</td>`:''}</tr>`).join('')}
+    ${regs.length || cls.length ? `<table><thead><tr><th>Data</th><th>Luogo</th><th class="num">Importo</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
+    ${regs.map(r => `<tr><td>${fdate(r.date)}</td><td>${esc(r.place)}</td>
+      <td class="num">${admin ? `<input type="number" step="0.01" min="0.01" value="${r.items[account]}" data-edit="${r.id}" style="width:110px;text-align:right">` : eur(r.items[account])}</td>
+      ${admin ? `<td><button class="small danger" data-del="${r.id}">Elimina</button></td>` : ''}</tr>`).join('')}
+    ${cls.map(c => `<tr><td>${fdate(c.date)}</td><td class="muted">Chiusura cassa</td><td class="num">−${eur(c.items[account])}</td>${admin ? '<td></td>' : ''}</tr>`).join('')}
     </tbody></table>` : '<p class="muted">Nessuna registrazione.</p>'}
-    ${admin && es.length ? '<p class="msg err" id="dmsg"></p><p class="muted">Modifica un importo e premi Invio per salvare.</p>' : ''}`);
+    ${admin && regs.length ? '<p class="msg err" id="dmsg"></p><p class="muted">Modifica un importo e premi Invio per salvare.</p>' : ''}`);
   const msg = t => { const m = $('#dmsg'); if (m) m.textContent = t; };
   const valid = list => { const { b } = balances(list); return FUNDS.every(a => b[a] > -0.005); };
   document.querySelectorAll('[data-edit]').forEach(inp => inp.onchange = () => {
     const v = round(parseFloat(inp.value)), id = +inp.dataset.edit;
     if (!(v > 0)) return msg('Importo non valido.');
-    const next = db.entries.map(e => e.id === id ? { ...e, amount: v } : e);
+    const next = db.regs.map(r => r.id === id ? { ...r, items: { ...r.items, [account]: v } } : r);
     if (!valid(next)) return msg('La modifica renderebbe negativo il saldo di un conto.');
-    db.entries = next; save(); closeModal(); dettaglio(account); go(view);
+    db.regs = next; save(); closeModal(); dettaglio(account); go(view);
   });
   document.querySelectorAll('[data-del]').forEach(btn => btn.onclick = () => {
-    if (!confirm('Eliminare questa registrazione?')) return;
-    const next = db.entries.filter(e => e.id !== +btn.dataset.del);
+    if (!confirm(`Eliminare l’importo di “${account}” da questa registrazione?`)) return;
+    const id = +btn.dataset.del;
+    const next = db.regs.map(r => { if (r.id !== id) return r; const items = { ...r.items }; delete items[account]; return { ...r, items }; })
+      .filter(r => Object.keys(r.items).length);
     if (!valid(next)) return msg('L’eliminazione renderebbe negativo il saldo di un conto.');
-    db.entries = next; save(); closeModal(); dettaglio(account); go(view);
+    db.regs = next; save(); closeModal(); dettaglio(account); go(view);
   });
 }
 
 /* ---------- 3. Prima Nota ---------- */
 function vNota() {
-  const es = [...db.entries].sort((x,y)=>y.date.localeCompare(x.date)||y.id-x.id);
+  const list = [...db.regs.map(r => ({ t: 'reg', d: r.date, id: r.id, o: r })), ...db.closings.map(c => ({ t: 'cl', d: c.date, id: c.id, o: c }))]
+    .sort((x, y) => y.d.localeCompare(x.d) || y.id - x.id);
   $('#view').innerHTML = `<div class="card"><h2>Registrazione Prima Nota</h2>
-    ${es.length ? `<table><thead><tr><th>Registrazione</th><th>Conto</th><th class="num">Importo</th></tr></thead><tbody>
-    ${es.map(e=>`<tr><td><button class="link" data-id="${e.id}">Registrazione del ${fdate(e.date)}</button></td><td>${esc(e.account)}</td>
-      <td class="num">${e.account===SPESE?'−':''}${eur(e.amount)}</td></tr>`).join('')}
+    ${list.length ? `<table><thead><tr><th>Registrazione</th><th>Luogo</th><th class="num">Totale</th></tr></thead><tbody>
+    ${list.map(x => x.t === 'reg'
+      ? `<tr><td><button class="link" data-reg="${x.id}">Registrazione del ${fdate(x.d)}</button></td><td>${esc(x.o.place)}</td><td class="num">${eur(regNet(x.o))}</td></tr>`
+      : `<tr><td><button class="link" data-cl="${x.id}">Chiusura cassa del ${fdate(x.d)}</button></td><td class="muted">${esc(x.o.bank)}</td><td class="num">−${eur(x.o.total)}</td></tr>`).join('')}
     </tbody><tfoot><tr><td colspan="2">Totale cassa del campo</td><td class="num">${eur(total(balances().b))}</td></tr></tfoot></table>`
     : '<p class="muted">Nessuna registrazione ancora.</p>'}</div>`;
-  $('#view').querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
-    const e = db.entries.find(x => x.id === +b.dataset.id);
-    const c = e.closingId && db.closings.find(x => x.id === e.closingId);
-    modal(`<h2>Registrazione del ${fdate(e.date)}</h2><dl>
-      <dt>Conto</dt><dd>${esc(e.account)}</dd>
-      <dt>Importo</dt><dd>${e.account===SPESE?'−':''}${eur(e.amount)}</dd>
-      <dt>Tipo</dt><dd>${e.closingId?'Prelievo per chiusura cassa':e.account===SPESE?`Spesa (a carico di ${PRO})`:'Versamento'}</dd>
-      ${e.note?`<dt>Nota</dt><dd>${esc(e.note)}</dd>`:''}
-      ${c?`<dt>Bonifico</dt><dd>${fdate(c.date)} – ${esc(c.by)} – ${esc(c.bank)}</dd>`:''}
-      <dt>Inserita da</dt><dd>${esc(e.by||'')}</dd></dl>`);
+  $('#view').querySelectorAll('[data-reg]').forEach(b => b.onclick = () => {
+    const r = db.regs.find(x => x.id === +b.dataset.reg);
+    modal(`<h2>Registrazione del ${fdate(r.date)}</h2>
+      <dl><dt>Luogo</dt><dd>${esc(r.place) || '—'}</dd><dt>Inserita da</dt><dd>${esc(r.by || '')}</dd></dl>
+      <table><tbody>${ACCOUNTS.filter(a => r.items[a]).map(a => `<tr><td>${esc(a)}</td><td class="num">${a === SPESE ? '−' : ''}${eur(r.items[a])}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>Totale entrate</td><td class="num">${eur(regTotal(r))}</td></tr>${r.items[SPESE] ? `<tr><td>Al netto delle spese</td><td class="num">${eur(regNet(r))}</td></tr>` : ''}</tfoot></table>`);
+  });
+  $('#view').querySelectorAll('[data-cl]').forEach(b => b.onclick = () => {
+    const c = db.closings.find(x => x.id === +b.dataset.cl);
+    modal(`<h2>Chiusura cassa del ${fdate(c.date)}</h2>
+      <dl><dt>Bonifico fatto da</dt><dd>${esc(c.by)}</dd><dt>Istituto di credito</dt><dd>${esc(c.bank)}</dd></dl>
+      <table><tbody>${FUNDS.filter(a => c.items[a]).map(a => `<tr><td>${esc(a)}</td><td class="num">−${eur(c.items[a])}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>Totale tolto dalla cassa</td><td class="num">−${eur(c.total)}</td></tr></tfoot></table>`);
   });
 }
 
@@ -305,35 +375,33 @@ function vChiusura() {
         <div><label>Istituto di credito</label><input id="cb" required></div>
       </div>
       <table style="margin-top:16px"><thead><tr><th>Conto</th><th class="num">Somma da togliere (€)</th><th class="num">In cassa</th></tr></thead><tbody>
-      ${FUNDS.map((a,i)=>`<tr><td>${esc(a)}</td>
-        <td><input type="number" class="w" data-i="${i}" min="0" step="0.01" max="${b[a]}" placeholder="0,00" style="text-align:right"></td>
+      ${FUNDS.map((a, i) => `<tr><td>${esc(a)}</td>
+        <td><input type="number" class="w" data-i="${i}" min="0" step="0.01" max="${b[a]}" placeholder="0,00" inputmode="decimal" style="text-align:right"></td>
         <td><input readonly value="${eur(b[a])}" style="text-align:right" tabindex="-1"></td></tr>`).join('')}
       </tbody><tfoot><tr><td>Totale che si sta togliendo</td><td class="num" id="ct">${eur(0)}</td><td class="num">${eur(total(b))}</td></tr></tfoot></table>
       <div id="cmsg" class="msg err"></div>
       <button class="primary" style="margin-top:12px">Registra chiusura</button>
     </form>
     ${db.closings.length ? `<h2 style="margin-top:24px">Chiusure precedenti</h2><table><thead><tr><th>Data bonifico</th><th>Eseguito da</th><th>Istituto</th><th class="num">Totale</th></tr></thead><tbody>
-    ${[...db.closings].reverse().map(c=>`<tr><td>${fdate(c.date)}</td><td>${esc(c.by)}</td><td>${esc(c.bank)}</td><td class="num">${eur(c.total)}</td></tr>`).join('')}</tbody></table>` : ''}
+    ${[...db.closings].reverse().map(c => `<tr><td>${fdate(c.date)}</td><td>${esc(c.by)}</td><td>${esc(c.bank)}</td><td class="num">${eur(c.total)}</td></tr>`).join('')}</tbody></table>` : ''}
   </div>`;
   const inputs = [...document.querySelectorAll('.w')];
-  const sum = () => round(inputs.reduce((s,i)=>s+(parseFloat(i.value)||0),0));
-  inputs.forEach(i => i.oninput = () => $('#ct').textContent = eur(sum()));
+  const tot = () => sum(inputs.map(i => parseFloat(i.value)));
+  inputs.forEach(i => i.oninput = () => $('#ct').textContent = eur(tot()));
   $('#cf').onsubmit = ev => {
     ev.preventDefault();
     const msg = $('#cmsg'); msg.className = 'msg err';
-    const items = inputs.map(i => ({ account: FUNDS[+i.dataset.i], amount: round(parseFloat(i.value)||0) })).filter(x => x.amount !== 0);
-    if (items.some(x => x.amount < 0)) return msg.textContent = 'Gli importi non possono essere negativi.';
-    const bad = items.find(x => x.amount > b[x.account] + 1e-9);
-    if (bad) return msg.textContent = `Importo superiore alla cassa per “${bad.account}”.`;
-    if (!items.length) return msg.textContent = 'Inserisci almeno una somma da togliere.';
-    const tot = round(items.reduce((s,x)=>s+x.amount,0));
-    if (!confirm(`Registrare la chiusura per un totale di ${eur(tot)}? I saldi verranno ridotti.`)) return;
-    const id = db.seq++;
-    const date = $('#cd').value;
-    db.closings.push({ id, date, by: $('#cn').value.trim(), bank: $('#cb').value.trim(), total: tot });
-    items.forEach(x => db.entries.push({ id: db.seq++, date, account: x.account, amount: -x.amount, note: 'Chiusura cassa annua', closingId: id, by: session.name }));
+    const items = {};
+    for (const i of inputs) { const v = round(parseFloat(i.value) || 0); if (v) items[FUNDS[+i.dataset.i]] = v; }
+    if (Object.values(items).some(v => v < 0)) return msg.textContent = 'Gli importi non possono essere negativi.';
+    const bad = Object.entries(items).find(([a, v]) => v > b[a] + 1e-9);
+    if (bad) return msg.textContent = `Importo superiore alla cassa per “${bad[0]}”.`;
+    if (!Object.keys(items).length) return msg.textContent = 'Inserisci almeno una somma da togliere.';
+    const t = sum(Object.values(items));
+    if (!confirm(`Registrare la chiusura per un totale di ${eur(t)}? I saldi verranno ridotti.`)) return;
+    db.closings.push({ id: db.seq++, date: $('#cd').value, by: $('#cn').value.trim(), bank: $('#cb').value.trim(), items, total: t });
     save(); vChiusura();
-    $('#cmsg').className = 'msg ok'; $('#cmsg').textContent = `Chiusura registrata: ${eur(tot)}.`;
+    $('#cmsg').className = 'msg ok'; $('#cmsg').textContent = `Chiusura registrata: ${eur(t)}.`;
   };
 }
 </script>
