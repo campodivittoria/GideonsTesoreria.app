@@ -120,6 +120,7 @@
   button.fy.cur { border-color:#b9c7da; background:#eef3fa; } button.fy.cur .yr { background:var(--brand); color:#fff; }
   .badge { display:inline-block; padding:1px 7px; border-radius:9px; font-size:.68rem; font-weight:700; background:#e6f4ec; color:var(--ok); vertical-align:middle; }
   .note { background:#eef3fa; border-left:4px solid var(--brand); padding:10px 12px; border-radius:6px; font-size:.88rem; margin:12px 0; }
+  .note.warn { background:#fff3cd; border-color:#d9a420; color:#5b4400; }
   table.fy5 th, table.fy5 td, table.fy5 tfoot td { font-size:.72rem; padding:6px 2px; } table.fy5 td:first-child { font-size:.74rem; }
   table.fy5 tfoot td:first-child { font-size:.7rem; line-height:1.15; }
   @media (max-width:420px) { table.fy5 th, table.fy5 td, table.fy5 tfoot td { font-size:.64rem; padding:5px 1px; } table.fy5 td:first-child { font-size:.66rem; } table.fy5 tfoot td:first-child { font-size:.62rem; } }
@@ -175,7 +176,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '3.6'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '3.7'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -286,13 +287,12 @@ function demoData() {
     if (rnd() < .3) items[SPESE] = amt(2, Math.min(24, items[PRO]));
     d.regs.push({ id: d.seq++, date, place: pick(PLACES), items, by: 'test' });
   }
-  // una chiusura di cassa a fine 2024 e una a fine 2025: toglie circa il 90% di ogni conto
-  for (const [year, idx] of [['2024', 0], ['2025', 1]]) {
-    const date = `${year}-12-31`;
+  // bonifici di chiusura dell'anno fiscale: il primo in ritardo (8 giugno 2025), il secondo in tempo (28 maggio 2026); tolgono circa il 62% di ogni conto
+  for (const [date, idx] of [['2025-06-08', 0], ['2026-05-28', 1]]) {
     const { b } = balances(d.regs.filter(r => r.date <= date), d.closings.filter(c => c.date <= date));
     const items = {};
-    for (const a of FUNDS) { const v = Math.floor(b[a] * 0.9); if (v > 0) items[a] = v; }
-    d.closings.push({ id: d.seq++, date, by: NAMES[idx], bank: BANKS[idx], items, total: sum(Object.values(items)) });
+    for (const a of FUNDS) { const v = Math.floor(b[a] * 0.62); if (v > 0) items[a] = v; }
+    d.closings.push({ id: d.seq++, date, by: NAMES[idx], bank: BANKS[idx], items, total: sum(Object.values(items)), closesYear: true });
   }
   return d;
 }
@@ -315,13 +315,41 @@ const others = b => round(total(b) - b[PRO]);                   // tutti i conti
 const valid = (regs = db.regs, closings = db.closings) => { const { b } = balances(regs, closings); return FUNDS.every(a => b[a] > -0.005); };
 
 /* ---------- anno fiscale (1 giugno – 31 maggio) ---------- */
-const fyOf = d => { const [y, m] = d.split('-').map(Number); return m >= 6 ? y : y - 1; }; // anno di inizio
 const fyLabel = y => `${y}/${String(y + 1).slice(2)}`;
-const fyRange = y => ({ from: `${y}-06-01`, to: `${y + 1}-05-31` });
-const currentFY = () => fyOf(today());
-// Rendiconto di un anno fiscale: riporto al 1/6, entrate, spese e bonifici, saldo al 31/5 (o a oggi)
+const nominalFY = d => { const [y, m] = d.split('-').map(Number); return m >= 6 ? y : y - 1; }; // anno nominale (inizio) di una data
+const nextDay = d => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
+const dShort = d => fdate(d).slice(0, 5); // gg/mm
+/* Anni fiscali con i confini reali. L'anno nominale va dal 1° giugno al 31 maggio, ma si chiude davvero con il
+   bonifico di chiusura (Chiusura Cassa con "chiude l'anno fiscale"): se il bonifico è registrato entro il 31 maggio
+   l'anno si chiude il 31 maggio; se arriva dopo, l'anno resta aperto e si chiude il giorno del bonifico; il nuovo
+   anno parte dal giorno successivo. Senza bonifico l'anno resta aperto (anche oltre il 31 maggio). */
+function fyList(regsAll = db.regs, clsAll = db.closings) {
+  const dates = [...regsAll, ...clsAll].map(x => x.date).sort();
+  let y = Math.min(nominalFY(dates[0] || today()), nominalFY(today()));
+  let from = `${y}-06-01`;
+  const closers = clsAll.filter(c => c.closesYear !== false).sort((a, b) => a.date.localeCompare(b.date));
+  const list = [];
+  for (let n = 0; n < 200; n++) {
+    const nominalEnd = `${y + 1}-05-31`;
+    const onTime = closers.find(c => c.date >= from && c.date <= nominalEnd);
+    const late = onTime ? null : closers.find(c => c.date >= from && c.date > nominalEnd);
+    const closer = onTime || late || null;
+    const to = onTime ? nominalEnd : late ? late.date : null;
+    const closed = !!to && to < today();
+    list.push({ y, label: fyLabel(y), from, to, nominalEnd, closer, closed, late: !!late, overdue: !closed && today() > nominalEnd });
+    if (!closed) break;
+    from = nextDay(to); y++;
+  }
+  return list;
+}
+const currentFY = () => fyList().at(-1).y;
+const fyOfDate = d => { const l = fyList(); return l.find(f => d >= f.from && (!f.to || d <= f.to)) || (d < l[0].from ? l[0] : l.at(-1)); };
+function fyYears() { return fyList().map(f => f.y).reverse(); }
+// Rendiconto di un anno fiscale: riporto all'apertura, entrate, spese e bonifici, saldo alla chiusura (o a oggi)
 function fyReport(y, regsAll = db.regs, clsAll = db.closings) {
-  const { from, to } = fyRange(y);
+  const info = fyList(regsAll, clsAll).find(f => f.y === y);
+  if (!info) return null;
+  const from = info.from, to = info.to || '9999-12-31';
   const open = balances(regsAll.filter(r => r.date < from), clsAll.filter(c => c.date < from)).b;
   const regs = regsAll.filter(r => r.date >= from && r.date <= to), cls = clsAll.filter(c => c.date >= from && c.date <= to);
   const close = balances(regsAll.filter(r => r.date <= to), clsAll.filter(c => c.date <= to)).b;
@@ -329,14 +357,13 @@ function fyReport(y, regsAll = db.regs, clsAll = db.closings) {
   const rows = FUNDS.map(a => ({ a, open: open[a], in: sum(regs.map(r => r.items[a])),
     out: round((a === PRO ? spese : 0) + sum(cls.map(c => c.items[a]))), close: close[a] }));
   const t = k => sum(rows.map(r => r[k]));
-  return { y, label: fyLabel(y), from, to, regs, cls, spese, rows, open, tot: { open: t('open'), in: t('in'), out: t('out'), close: t('close') } };
+  return { ...info, regs, cls, spese, rows, open, tot: { open: t('open'), in: t('in'), out: t('out'), close: t('close') } };
 }
-function fyYears() { const ys = new Set([...db.regs, ...db.closings].map(x => fyOf(x.date))); ys.add(currentFY()); return [...ys].sort((a, b) => b - a); }
 function fyTable(rep, current) {
   const pro = rep.rows[0], alt = rep.rows.slice(1);
   const cell = v => `<td class="num${v ? '' : ' zero'}">${n2(v)}</td>`;
   return `<table class="compact fy5"><colgroup><col style="width:30%"><col style="width:17%"><col style="width:17%"><col style="width:18%"><col style="width:18%"></colgroup>
-    <thead><tr><th>Conto</th><th class="num">Riporto<br>1/6</th><th class="num">Entrate</th><th class="num">Spese e<br>bonifici</th><th class="num">${current ? 'Saldo<br>oggi' : 'Saldo<br>31/5'}</th></tr></thead><tbody>
+    <thead><tr><th>Conto</th><th class="num">Riporto<br>${dShort(rep.from)}</th><th class="num">Entrate</th><th class="num">Spese e<br>bonifici</th><th class="num">${current ? 'Saldo<br>oggi' : `Saldo<br>${dShort(rep.to)}`}</th></tr></thead><tbody>
     ${rep.rows.map(r => `<tr data-d="${esc(r.a)}"><td>${esc(r.a)}</td>${cell(r.open)}${cell(r.in)}${cell(r.out)}<td class="num"><b>${n2(r.close)}</b></td></tr>`).join('')}
     <tr class="spese" data-d="${SPESE}"><td>${SPESE}<br><span class="muted" style="font-size:.65rem">a carico di ${PRO}</span></td><td class="num zero">—</td><td class="num zero">—</td><td class="num">${n2(rep.spese)}</td><td class="num zero">—</td></tr>
     </tbody><tfoot>
@@ -347,10 +374,10 @@ function fyTable(rep, current) {
 }
 // data in un anno fiscale già chiuso: solo l'amministratore, con conferma (il bilancio archiviato viene ricalcolato)
 function closedYearOk(date, msgEl) {
-  const y = fyOf(date);
-  if (y >= currentFY()) return true;
-  if (session.role !== 'admin') { msgEl.textContent = `L’anno fiscale ${fyLabel(y)} è chiuso (31/05/${y + 1}): solo l’amministratore può registrare con questa data.`; return false; }
-  return confirm(`La data ${fdate(date)} appartiene all’anno fiscale ${fyLabel(y)}, già chiuso. Il bilancio archiviato verrà ricalcolato. Continuare?`);
+  const f = fyOfDate(date);
+  if (!f.closed) return true;
+  if (session.role !== 'admin') { msgEl.textContent = `L’anno fiscale ${f.label} è chiuso (${fdate(f.to)}): solo l’amministratore può registrare con questa data.`; return false; }
+  return confirm(`La data ${fdate(date)} appartiene all’anno fiscale ${f.label}, chiuso il ${fdate(f.to)}. Il bilancio archiviato verrà ricalcolato. Continuare?`);
 }
 
 /* ---------- login ---------- */
@@ -463,7 +490,7 @@ function vHome() {
         </tfoot></table>
       </div>
       <p class="muted" style="margin:12px 0 0">${db.regs.length} registrazion${db.regs.length === 1 ? 'e' : 'i'}${db.regs.length ? ', ultima il ' + fdate([...db.regs].sort((x, y) => y.date.localeCompare(x.date))[0].date) : ''}.</p>
-      <p class="muted" style="margin:4px 0 0">${(() => { const r = fyReport(currentFY()); return `Anno fiscale <b>${r.label}</b> (dal 1/6/${r.y}): riporto ${eur(r.tot.open)}, entrate ${eur(r.tot.in)}, spese e bonifici ${eur(r.tot.out)}.`; })()}</p>
+      <p class="muted" style="margin:4px 0 0">${(() => { const r = fyReport(currentFY()); return `Anno fiscale <b>${r.label}</b> dal ${fdate(r.from)}: ${r.regs.length} registrazion${r.regs.length === 1 ? 'e' : 'i'}, riporto ${eur(r.tot.open)}, entrate ${eur(r.tot.in)}, spese e bonifici ${eur(r.tot.out)}.`; })()}</p>
     </div>`;
   $('#newReg').onclick = () => formRegistrazione();
 }
@@ -530,6 +557,7 @@ function formChiusura(existing) {
         <div><label>Data del bonifico</label><input type="date" id="ced" value="${existing.date}" required></div>
         <div><label>Nome di chi ha fatto il bonifico</label><input id="cen" value="${esc(existing.by)}" required></div>
         <div><label>Istituto di credito</label><input id="ceb" value="${esc(existing.bank)}" required></div>
+        <div style="grid-column:1/-1"><label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:.95rem;cursor:pointer"><input type="checkbox" id="cey"${existing.closesYear !== false ? ' checked' : ''} style="width:18px;height:18px;margin:0">Questo bonifico chiude l’anno fiscale (chiusura annua)</label></div>
       </div>
       <table style="margin-top:14px"><thead><tr><th>Conto</th><th class="num">Tolto (€)</th><th class="num">Disponibile</th></tr></thead><tbody>
       ${FUNDS.map((a, i) => `<tr><td>${esc(a)}</td><td><input type="number" class="ce" data-i="${i}" min="0" step="0.01" value="${existing.items[a] ?? ''}" placeholder="0,00" inputmode="decimal" style="text-align:right;width:110px"></td><td class="num muted">${n2(b[a])}</td></tr>`).join('')}
@@ -553,7 +581,7 @@ function formChiusura(existing) {
     const bad = Object.entries(items).find(([a, v]) => v > b[a] + 1e-9);
     if (bad) return msg.textContent = `Importo superiore al disponibile per “${bad[0]}”.`;
     if (!closedYearOk($('#ced').value, msg)) return;
-    const cl = { ...existing, date: $('#ced').value, by: $('#cen').value.trim(), bank: $('#ceb').value.trim(), items, total: sum(Object.values(items)), editedBy: session.name };
+    const cl = { ...existing, date: $('#ced').value, by: $('#cen').value.trim(), bank: $('#ceb').value.trim(), items, total: sum(Object.values(items)), closesYear: $('#cey').checked, editedBy: session.name };
     db.closings = [...otherCl, cl].sort((x, y) => x.date.localeCompare(y.date) || x.id - y.id);
     save(); closeModal(); go(view);
   };
@@ -566,10 +594,11 @@ function vRendiconto() {
   $('#view').innerHTML = `
     <div class="card">
       <h2>Rendiconto del Campo</h2>
-      <p class="muted" style="margin-top:-6px"><b>Anno fiscale ${rep.label}</b> · dal 1° giugno ${y} al 31 maggio ${y + 1}</p>
-      <p class="muted">Importi in euro. “Riporto 1/6” sono i soldi rimasti dall’anno precedente. Tocca un conto per il dettaglio${admin ? ' e per correggere gli importi' : ''}.</p>
+      <p class="muted" style="margin-top:-6px"><b>Anno fiscale ${rep.label}</b> · dal ${fdate(rep.from)}${rep.to ? ' al ' + fdate(rep.to) : ''}</p>
+      ${rep.overdue ? `<div class="note warn">Il 31 maggio è passato ma il bonifico di chiusura non è ancora registrato: l’anno ${rep.label} resta aperto. Appena registri la Chiusura Cassa con “chiude l’anno fiscale”, l’anno si chiude quel giorno e dal giorno dopo parte il ${fyLabel(y + 1)}.</div>` : ''}
+      <p class="muted">Importi in euro. Entrate, spese e bonifici sono ripartiti da zero il ${fdate(rep.from)}; “Riporto” sono i saldi di ogni conto rimasti dall’anno precedente. Tocca un conto per il dettaglio${admin ? ' e per correggere gli importi' : ''}.</p>
       ${fyTable(rep, true)}
-      <p class="muted" style="margin-top:10px">Il 31/05/${y + 1} questo rendiconto verrà chiuso e archiviato nel Bilancio Storico; il 01/06/${y + 1} i saldi diventeranno il nuovo riporto.</p>
+      <p class="muted" style="margin-top:10px">Alla chiusura dell’anno (il ${fdate(rep.nominalEnd)}, oppure il giorno del bonifico di chiusura se arriva dopo) questo rendiconto verrà archiviato nel Bilancio Storico; dal giorno seguente entrate e spese ripartono da zero e i saldi diventano il riporto del ${fyLabel(y + 1)}.</p>
       <p class="noprint"><button class="small" onclick="window.print()">Stampa</button> <button class="small" id="toBil">Bilancio Storico</button></p>
     </div>`;
   $('#view').querySelectorAll('tr[data-d]').forEach(tr => tr.onclick = () => dettaglio(tr.dataset.d, y));
@@ -579,7 +608,7 @@ function vRendiconto() {
 // dettaglio di un conto nell'anno fiscale y (riporto + movimenti dell'anno)
 function dettaglio(account, y = currentFY()) {
   const admin = session.role === 'admin';
-  const { from, to } = fyRange(y), rep = fyReport(y);
+  const rep = fyReport(y), from = rep.from;
   const regs = rep.regs.filter(r => r.items[account] != null).sort((x, z) => x.date.localeCompare(z.date) || x.id - z.id);
   const cls = rep.cls.filter(c => c.items[account]).sort((x, z) => x.date.localeCompare(z.date));
   const riporto = account !== SPESE ? `<tr><td>${fdate(from)}</td><td class="muted">Riporto anno ${fyLabel(y - 1)}</td><td class="num">${eur(rep.open[account])}</td>${admin ? '<td></td>' : ''}</tr>` : '';
@@ -618,25 +647,25 @@ function vBilancio() {
   if (bilY != null) return vBilancioAnno(bilY);
   const cur = currentFY();
   $('#view').innerHTML = `<div class="card"><h2>Bilancio Storico</h2>
-    <p class="muted">Un bilancio per ogni anno fiscale (1 giugno – 31 maggio). Il 31 maggio l’app chiude l’anno da sola e lo archivia qui; il 1° giugno i conti ripartono dai saldi rimasti. Tocca un anno per vedere il rendiconto.</p>
+    <p class="muted">Un bilancio per ogni anno fiscale (1 giugno – 31 maggio). L’anno si chiude da solo il 31 maggio se il bonifico di chiusura è già registrato, altrimenti il giorno in cui viene registrato; dal giorno dopo entrate e spese ripartono da zero e i saldi di ogni conto diventano il riporto. Tocca un anno per vedere il rendiconto.</p>
     ${fyYears().map(y => { const r = fyReport(y), isCur = y === cur;
       return `<button class="fy${isCur ? ' cur' : ''}" data-y="${y}"><span class="yr">${r.label}</span>
-        <span class="what"><b>${isCur ? 'Anno in corso' : `Chiuso il 31/05/${y + 1} <span class="badge">automatico</span>`}</b>
+        <span class="what"><b>${isCur ? (r.overdue ? 'In attesa del bonifico di chiusura' : 'Anno in corso') : `Chiuso il ${fdate(r.to)}${r.late ? ' con il bonifico' : ''} <span class="badge">automatico</span>`}</b>
         <small>${r.regs.length} registrazion${r.regs.length === 1 ? 'e' : 'i'}${r.cls.length ? ` · ${r.cls.length} bonific${r.cls.length === 1 ? 'o' : 'i'}` : ''}</small></span>
-        <span class="amt">${eur(r.tot.close)}<small>${isCur ? 'cassa oggi' : 'saldo al 31/5'}</small></span></button>`; }).join('')}
+        <span class="amt">${eur(r.tot.close)}<small>${isCur ? 'cassa oggi' : `saldo al ${dShort(r.to)}`}</small></span></button>`; }).join('')}
     <p class="muted" style="margin-top:12px">Un bilancio chiuso cambia solo se l’amministratore inserisce o corregge una registrazione con data in quell’anno.</p>
   </div>`;
   $('#view').querySelectorAll('[data-y]').forEach(b => b.onclick = () => { bilY = +b.dataset.y; vBilancioAnno(bilY); });
 }
 function vBilancioAnno(y) {
   const rep = fyReport(y), isCur = y === currentFY();
-  $('#pageTitle').innerHTML = `Bilancio ${rep.label}<small>1 giugno ${y} – 31 maggio ${y + 1}</small>`;
+  $('#pageTitle').innerHTML = `Bilancio ${rep.label}<small>${fdate(rep.from)} – ${rep.to ? fdate(rep.to) : 'oggi'}</small>`;
   $('#view').innerHTML = `<div class="card">
     <p class="noprint" style="margin:0 0 10px"><button class="small" id="bilBack">← Tutti gli anni</button></p>
     <h2>Bilancio ${rep.label}</h2>
-    <p class="muted">${isCur ? `Anno in corso: si chiuderà automaticamente il 31/05/${y + 1}` : `Chiuso automaticamente il 31/05/${y + 1}`}. Importi in euro.</p>
+    <p class="muted">${isCur ? (rep.overdue ? 'Anno ancora aperto: il 31 maggio è passato, si chiuderà con la registrazione del bonifico di chiusura' : `Anno in corso: si chiuderà il ${fdate(rep.nominalEnd)}, o il giorno del bonifico di chiusura se arriva dopo`) : `Chiuso automaticamente il ${fdate(rep.to)}${rep.late ? ' con il bonifico di chiusura' : ''}`}. Importi in euro.</p>
     ${fyTable(rep, isCur)}
-    ${isCur ? '' : `<div class="note"><b>Riporto al 1° giugno ${y + 1}: ${eur(rep.tot.close)}</b><br>Il “Saldo 31/5” di ogni conto è diventato il “Riporto 1/6” dell’anno ${fyLabel(y + 1)}.</div>`}
+    ${isCur ? '' : `<div class="note"><b>Riporto al ${fdate(nextDay(rep.to))}: ${eur(rep.tot.close)}</b><br>Il “Saldo ${dShort(rep.to)}” di ogni conto è diventato il “Riporto ${dShort(nextDay(rep.to))}” dell’anno ${fyLabel(y + 1)}; entrate, spese e bonifici sono ripartiti da zero.</div>`}
     ${rep.cls.length ? `<p class="muted">Bonific${rep.cls.length === 1 ? 'o' : 'i'} dell’anno: ${rep.cls.map(c => `${fdate(c.date)} – ${esc(c.by)} – ${esc(c.bank)} – ${eur(c.total)}`).join('; ')}.</p>` : ''}
     <p class="noprint"><button class="small" onclick="window.print()">Stampa</button></p>
   </div>`;
@@ -679,7 +708,7 @@ function vNota() {
   $('#view').querySelectorAll('[data-cl]').forEach(b => b.onclick = () => {
     const c = db.closings.find(x => x.id === +b.dataset.cl);
     modal(`<h2>Chiusura cassa del ${fdate(c.date)}</h2>
-      <dl><dt>Bonifico fatto da</dt><dd>${esc(c.by)}</dd><dt>Istituto di credito</dt><dd>${esc(c.bank)}</dd>${c.editedBy ? `<dt>Modificata da</dt><dd>${esc(c.editedBy)}</dd>` : ''}</dl>
+      <dl><dt>Bonifico fatto da</dt><dd>${esc(c.by)}</dd><dt>Istituto di credito</dt><dd>${esc(c.bank)}</dd>${c.closesYear !== false ? '<dt>Tipo</dt><dd>Bonifico di chiusura dell’anno fiscale</dd>' : ''}${c.editedBy ? `<dt>Modificata da</dt><dd>${esc(c.editedBy)}</dd>` : ''}</dl>
       <table><tbody>${FUNDS.filter(a => c.items[a]).map(a => `<tr><td>${esc(a)}</td><td class="num">−${eur(c.items[a])}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td>Totale tolto dalla cassa</td><td class="num">−${eur(c.total)}</td></tr></tfoot></table>
       ${editBtn('data-edit-cl', c.id)}`);
@@ -749,6 +778,7 @@ function vChiusura() {
         <div><label>Data del bonifico</label><input type="date" id="cd" value="${today()}" required></div>
         <div><label>Nome di chi ha fatto il bonifico</label><input id="cn" required></div>
         <div><label>Istituto di credito</label><input id="cb" required></div>
+        <div style="grid-column:1/-1"><label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:.95rem;cursor:pointer"><input type="checkbox" id="cy" checked style="width:18px;height:18px;margin:0">Questo bonifico chiude l’anno fiscale (chiusura annua)</label></div>
       </div>
       <table style="margin-top:16px"><thead><tr><th>Conto</th><th class="num">Somma da togliere (€)</th><th class="num">In cassa</th></tr></thead><tbody>
       ${FUNDS.map((a, i) => `<tr><td>${esc(a)}</td>
@@ -783,7 +813,7 @@ function vChiusura() {
     const t = sum(Object.values(items));
     if (!closedYearOk($('#cd').value, msg)) return;
     if (!confirm(`Registrare la chiusura per un totale di ${eur(t)}? I saldi verranno ridotti.`)) return;
-    db.closings.push({ id: db.seq++, date: $('#cd').value, by: $('#cn').value.trim(), bank: $('#cb').value.trim(), items, total: t });
+    db.closings.push({ id: db.seq++, date: $('#cd').value, by: $('#cn').value.trim(), bank: $('#cb').value.trim(), items, total: t, closesYear: $('#cy').checked });
     save(); vChiusura();
     $('#cmsg').className = 'msg ok'; $('#cmsg').textContent = `Chiusura registrata: ${eur(t)}.`;
   };

@@ -3,6 +3,14 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 3.7 – 22/10/2026
+- L'anno fiscale si chiude con il **bonifico di chiusura**: se è registrato entro il 31 maggio l'anno si
+  chiude il 31 maggio; se arriva dopo, l'anno resta aperto e si chiude il giorno del bonifico, e il nuovo
+  anno parte dal giorno seguente. Nella Chiusura Cassa c'è la casella "Questo bonifico chiude l'anno fiscale".
+- Alla chiusura ripartono da zero registrazioni, entrate, spese e bonifici; restano solo i saldi di ogni
+  conto, che diventano il riporto. Riepilogo, Rendiconto e Bilancio lo dicono esplicitamente.
+- Dati di prova: bonifici di chiusura l'8/6/2025 (in ritardo) e il 28/5/2026 (in tempo).
+
 ## 3.6 – 22/10/2026
 - Bilancio e Rendiconto: righe dei totali più compatte, i numeri non si sovrappongono sul telefono.
 
