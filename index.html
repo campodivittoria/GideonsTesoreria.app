@@ -111,6 +111,17 @@
   button.tl .amt { font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
   li.cl button.tl .amt { color:var(--bad); }
   .tl-total { display:flex; justify-content:space-between; border-top:2px solid var(--ink); margin-top:14px; padding-top:10px; font-size:1rem; }
+  /* bilancio storico */
+  button.fy { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; background:#fff; font:inherit; color:var(--ink); cursor:pointer; }
+  button.fy:hover { background:#eef3fa; }
+  button.fy .yr { flex:none; width:62px; height:44px; border-radius:8px; background:#e6ecf5; color:var(--brand); font-weight:700; display:flex; align-items:center; justify-content:center; font-size:.9rem; }
+  button.fy .what { flex:1; min-width:0; } button.fy .what b { display:block; font-weight:600; } button.fy .what small { color:var(--muted); font-size:.78rem; }
+  button.fy .amt { font-weight:700; text-align:right; white-space:nowrap; } button.fy .amt small { display:block; font-weight:400; color:var(--muted); font-size:.72rem; }
+  button.fy.cur { border-color:#b9c7da; background:#eef3fa; } button.fy.cur .yr { background:var(--brand); color:#fff; }
+  .badge { display:inline-block; padding:1px 7px; border-radius:9px; font-size:.68rem; font-weight:700; background:#e6f4ec; color:var(--ok); vertical-align:middle; }
+  .note { background:#eef3fa; border-left:4px solid var(--brand); padding:10px 12px; border-radius:6px; font-size:.88rem; margin:12px 0; }
+  table.fy5 th, table.fy5 td { font-size:.72rem; padding:6px 2px; } table.fy5 td:first-child { font-size:.74rem; }
+  @media (max-width:420px) { table.fy5 th, table.fy5 td { font-size:.66rem; padding:5px 1px; } table.fy5 td:first-child { font-size:.68rem; } }
   #login { max-width:360px; margin:12vh auto; }
   #updBar { position:fixed; left:12px; right:12px; bottom:12px; z-index:30; background:var(--ok); color:#fff; padding:12px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:.95rem; }
   #updBar button { background:#fff; color:var(--ok); border:0; border-radius:6px; padding:8px 14px; font-weight:700; cursor:pointer; font-size:.95rem; }
@@ -146,6 +157,7 @@
     <div class="brand"><img src="icon.svg" alt="" width="44" height="44" style="border-radius:10px"><div><b>Tesoreria</b><span>Campo Gedeoni</span></div></div>
     <button data-v="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/></svg>Riepilogo</button>
     <button data-v="rendiconto"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20v-8M11 20V6M16 20v-5M21 20V9"/></svg>Rendiconto del Campo</button>
+    <button data-v="bilancio"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3zM5 8v12h14V8M10 12h4"/></svg>Bilancio Storico</button>
     <button data-v="nota"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Storico Registrazioni</button>
     <button data-v="chiusura"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg>Chiusura Cassa Annua</button>
     <button data-v="impost" class="hidden"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Impostazioni</button>
@@ -162,7 +174,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '3.4'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '3.5'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -301,6 +313,45 @@ const others = b => round(total(b) - b[PRO]);                   // tutti i conti
 // nessun conto può andare sotto zero con questi dati
 const valid = (regs = db.regs, closings = db.closings) => { const { b } = balances(regs, closings); return FUNDS.every(a => b[a] > -0.005); };
 
+/* ---------- anno fiscale (1 giugno – 31 maggio) ---------- */
+const fyOf = d => { const [y, m] = d.split('-').map(Number); return m >= 6 ? y : y - 1; }; // anno di inizio
+const fyLabel = y => `${y}/${String(y + 1).slice(2)}`;
+const fyRange = y => ({ from: `${y}-06-01`, to: `${y + 1}-05-31` });
+const currentFY = () => fyOf(today());
+// Rendiconto di un anno fiscale: riporto al 1/6, entrate, spese e bonifici, saldo al 31/5 (o a oggi)
+function fyReport(y, regsAll = db.regs, clsAll = db.closings) {
+  const { from, to } = fyRange(y);
+  const open = balances(regsAll.filter(r => r.date < from), clsAll.filter(c => c.date < from)).b;
+  const regs = regsAll.filter(r => r.date >= from && r.date <= to), cls = clsAll.filter(c => c.date >= from && c.date <= to);
+  const close = balances(regsAll.filter(r => r.date <= to), clsAll.filter(c => c.date <= to)).b;
+  const spese = sum(regs.map(r => r.items[SPESE]));
+  const rows = FUNDS.map(a => ({ a, open: open[a], in: sum(regs.map(r => r.items[a])),
+    out: round((a === PRO ? spese : 0) + sum(cls.map(c => c.items[a]))), close: close[a] }));
+  const t = k => sum(rows.map(r => r[k]));
+  return { y, label: fyLabel(y), from, to, regs, cls, spese, rows, open, tot: { open: t('open'), in: t('in'), out: t('out'), close: t('close') } };
+}
+function fyYears() { const ys = new Set([...db.regs, ...db.closings].map(x => fyOf(x.date))); ys.add(currentFY()); return [...ys].sort((a, b) => b - a); }
+function fyTable(rep, current) {
+  const pro = rep.rows[0], alt = rep.rows.slice(1);
+  const cell = v => `<td class="num${v ? '' : ' zero'}">${n2(v)}</td>`;
+  return `<table class="compact fy5"><colgroup><col style="width:30%"><col style="width:17%"><col style="width:17%"><col style="width:18%"><col style="width:18%"></colgroup>
+    <thead><tr><th>Conto</th><th class="num">Riporto<br>1/6</th><th class="num">Entrate</th><th class="num">Spese e<br>bonifici</th><th class="num">${current ? 'Saldo<br>oggi' : 'Saldo<br>31/5'}</th></tr></thead><tbody>
+    ${rep.rows.map(r => `<tr data-d="${esc(r.a)}"><td>${esc(r.a)}</td>${cell(r.open)}${cell(r.in)}${cell(r.out)}<td class="num"><b>${n2(r.close)}</b></td></tr>`).join('')}
+    <tr class="spese" data-d="${SPESE}"><td>${SPESE}<br><span class="muted" style="font-size:.65rem">a carico di ${PRO}</span></td><td class="num zero">—</td><td class="num zero">—</td><td class="num">${n2(rep.spese)}</td><td class="num zero">—</td></tr>
+    </tbody><tfoot>
+    <tr><td>Totale ${PRO}</td>${cell(pro.open)}${cell(pro.in)}${cell(pro.out)}<td class="num">${n2(pro.close)}</td></tr>
+    <tr><td>Totale altri conti</td>${['open', 'in', 'out'].map(k => cell(sum(alt.map(r => r[k])))).join('')}<td class="num">${n2(sum(alt.map(r => r.close)))}</td></tr>
+    <tr class="grand"><td>Totale cassa</td><td class="num">${n2(rep.tot.open)}</td><td class="num">${n2(rep.tot.in)}</td><td class="num">${n2(rep.tot.out)}</td><td class="num">${n2(rep.tot.close)}</td></tr>
+    </tfoot></table>`;
+}
+// data in un anno fiscale già chiuso: solo l'amministratore, con conferma (il bilancio archiviato viene ricalcolato)
+function closedYearOk(date, msgEl) {
+  const y = fyOf(date);
+  if (y >= currentFY()) return true;
+  if (session.role !== 'admin') { msgEl.textContent = `L’anno fiscale ${fyLabel(y)} è chiuso (31/05/${y + 1}): solo l’amministratore può registrare con questa data.`; return false; }
+  return confirm(`La data ${fdate(date)} appartiene all’anno fiscale ${fyLabel(y)}, già chiuso. Il bilancio archiviato verrà ricalcolato. Continuare?`);
+}
+
 /* ---------- login ---------- */
 const SESSION_KEY = 'gedeoni_sessione';
 // fresh: true rigenera i dati di prova (nuovo accesso con l'account test)
@@ -328,7 +379,7 @@ $('#logout').onclick = () => { closeMenu(); session = null; try { localStorage.r
 $('#nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { go(b.dataset.v); closeMenu(); } });
 
 /* ---------- menu a tendina ---------- */
-const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', nota: 'Storico Registrazioni', chiusura: 'Chiusura Cassa Annua', impost: 'Impostazioni' };
+const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', bilancio: 'Bilancio Storico', nota: 'Storico Registrazioni', chiusura: 'Chiusura Cassa Annua', impost: 'Impostazioni' };
 function openMenu() { document.body.classList.add('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'true'); }
 function closeMenu() { document.body.classList.remove('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'false'); }
 $('#menuBtn').onclick = () => document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
@@ -340,7 +391,8 @@ function go(v) {
   $('#pageTitle').innerHTML = `${esc(TITLES[v])}<small>Tesoreria Campo Gedeoni</small>`;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   if (v === 'impost' && (session.role !== 'admin' || session.demo)) v = view = 'home';
-  ({home: vHome, rendiconto: vRendiconto, nota: vNota, chiusura: vChiusura, impost: vImpostazioni})[v]();
+  if (v !== 'bilancio') bilY = null;
+  ({home: vHome, rendiconto: vRendiconto, bilancio: vBilancio, nota: vNota, chiusura: vChiusura, impost: vImpostazioni})[v]();
 }
 
 /* ---------- condividi ---------- */
@@ -410,6 +462,7 @@ function vHome() {
         </tfoot></table>
       </div>
       <p class="muted" style="margin:12px 0 0">${db.regs.length} registrazion${db.regs.length === 1 ? 'e' : 'i'}${db.regs.length ? ', ultima il ' + fdate([...db.regs].sort((x, y) => y.date.localeCompare(x.date))[0].date) : ''}.</p>
+      <p class="muted" style="margin:4px 0 0">${(() => { const r = fyReport(currentFY()); return `Anno fiscale <b>${r.label}</b> (dal 1/6/${r.y}): riporto ${eur(r.tot.open)}, entrate ${eur(r.tot.in)}, spese e bonifici ${eur(r.tot.out)}.`; })()}</p>
     </div>`;
   $('#newReg').onclick = () => formRegistrazione();
 }
@@ -457,6 +510,7 @@ function formRegistrazione(existing) {
     if (inputs.some(i => i.value && !(parseFloat(i.value) >= 0))) return msg.textContent = 'Controlla gli importi inseriti.';
     if (!Object.keys(items).length) return msg.textContent = 'Inserisci almeno un importo.';
     if (items[SPESE] && items[SPESE] > b[PRO] + (items[PRO] || 0) + 1e-9) return msg.textContent = `Le spese superano il disponibile di ${PRO} (${eur(b[PRO] + (items[PRO] || 0))}).`;
+    if (!closedYearOk($('#rd').value, msg)) return;
     const reg = { id: existing ? existing.id : db.seq++, date: $('#rd').value, place: $('#rl').value.trim(), items, by: existing ? existing.by : session.name };
     if (existing) reg.editedBy = session.name;
     const next = [...otherRegs, reg];
@@ -497,6 +551,7 @@ function formChiusura(existing) {
     if (!Object.keys(items).length) return msg.textContent = 'Inserisci almeno una somma.';
     const bad = Object.entries(items).find(([a, v]) => v > b[a] + 1e-9);
     if (bad) return msg.textContent = `Importo superiore al disponibile per “${bad[0]}”.`;
+    if (!closedYearOk($('#ced').value, msg)) return;
     const cl = { ...existing, date: $('#ced').value, by: $('#cen').value.trim(), bank: $('#ceb').value.trim(), items, total: sum(Object.values(items)), editedBy: session.name };
     db.closings = [...otherCl, cl].sort((x, y) => x.date.localeCompare(y.date) || x.id - y.id);
     save(); closeModal(); go(view);
@@ -506,41 +561,36 @@ function formChiusura(existing) {
 /* ---------- 2. Rendiconto ---------- */
 function vRendiconto() {
   const admin = session.role === 'admin';
-  const { b, spese } = balances();
-  const rows = FUNDS.map(a => ({ a,
-    versato: sum(db.regs.map(r => r.items[a])),
-    prelevato: sum(db.closings.map(c => c.items[a])) }));
+  const y = currentFY(), rep = fyReport(y);
   $('#view').innerHTML = `
     <div class="card">
       <h2>Rendiconto del Campo</h2>
-      <p class="muted">Importi in euro. Tocca un conto per il dettaglio${admin ? ' e per correggere gli importi' : ''}.</p>
-      <table class="compact"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:22%"><col style="width:22%"></colgroup>
-      <thead><tr><th>Conto</th><th class="num">Versato</th><th class="num">Spese /<br>prelievi</th><th class="num">Saldo</th></tr></thead><tbody>
-      ${rows.map(r => { const out = r.a === PRO ? round(spese + r.prelevato) : r.prelevato;
-        return `<tr data-d="${esc(r.a)}"><td>${esc(r.a)}</td><td class="num${r.versato ? '' : ' zero'}">${n2(r.versato)}</td><td class="num${out ? '' : ' zero'}">${n2(out)}</td><td class="num"><b>${n2(b[r.a])}</b></td></tr>`; }).join('')}
-      <tr class="spese" data-d="${SPESE}"><td>${SPESE}<br><span class="muted" style="font-size:.65rem">a carico di ${PRO}</span></td><td class="num zero">—</td><td class="num">${n2(spese)}</td><td class="num zero">—</td></tr>
-      </tbody><tfoot>
-      ${(() => { const pro = rows[0], alt = rows.slice(1);
-        return `<tr><td>Totale ${PRO}</td><td class="num">${n2(pro.versato)}</td><td class="num">${n2(round(spese + pro.prelevato))}</td><td class="num">${n2(b[PRO])}</td></tr>
-        <tr><td>Totale altri conti</td><td class="num">${n2(sum(alt.map(r => r.versato)))}</td><td class="num">${n2(sum(alt.map(r => r.prelevato)))}</td><td class="num">${n2(others(b))}</td></tr>
-        <tr class="grand"><td>Totale cassa</td><td class="num">${n2(sum(rows.map(r => r.versato)))}</td><td class="num">${n2(round(spese + sum(rows.map(r => r.prelevato))))}</td><td class="num">${n2(total(b))}</td></tr>`; })()}
-      </tfoot></table>
-      <p class="noprint" style="margin-top:12px"><button class="small" onclick="window.print()">Stampa</button></p>
+      <p class="muted" style="margin-top:-6px"><b>Anno fiscale ${rep.label}</b> · dal 1° giugno ${y} al 31 maggio ${y + 1}</p>
+      <p class="muted">Importi in euro. “Riporto 1/6” sono i soldi rimasti dall’anno precedente. Tocca un conto per il dettaglio${admin ? ' e per correggere gli importi' : ''}.</p>
+      ${fyTable(rep, true)}
+      <p class="muted" style="margin-top:10px">Il 31/05/${y + 1} questo rendiconto verrà chiuso e archiviato nel Bilancio Storico; il 01/06/${y + 1} i saldi diventeranno il nuovo riporto.</p>
+      <p class="noprint"><button class="small" onclick="window.print()">Stampa</button> <button class="small" id="toBil">Bilancio Storico</button></p>
     </div>`;
-  $('#view').querySelectorAll('tr[data-d]').forEach(tr => tr.onclick = () => dettaglio(tr.dataset.d));
+  $('#view').querySelectorAll('tr[data-d]').forEach(tr => tr.onclick = () => dettaglio(tr.dataset.d, y));
+  $('#toBil').onclick = () => go('bilancio');
 }
 
-function dettaglio(account) {
+// dettaglio di un conto nell'anno fiscale y (riporto + movimenti dell'anno)
+function dettaglio(account, y = currentFY()) {
   const admin = session.role === 'admin';
-  const regs = db.regs.filter(r => r.items[account] != null).sort((x, y) => x.date.localeCompare(y.date) || x.id - y.id);
-  const cls = db.closings.filter(c => c.items[account]).sort((x, y) => x.date.localeCompare(y.date));
-  modal(`<h2>${esc(account)}</h2>
-    ${regs.length || cls.length ? `<table><thead><tr><th>Data</th><th>Luogo</th><th class="num">Importo</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
+  const { from, to } = fyRange(y), rep = fyReport(y);
+  const regs = rep.regs.filter(r => r.items[account] != null).sort((x, z) => x.date.localeCompare(z.date) || x.id - z.id);
+  const cls = rep.cls.filter(c => c.items[account]).sort((x, z) => x.date.localeCompare(z.date));
+  const riporto = account !== SPESE ? `<tr><td>${fdate(from)}</td><td class="muted">Riporto anno ${fyLabel(y - 1)}</td><td class="num">${eur(rep.open[account])}</td>${admin ? '<td></td>' : ''}</tr>` : '';
+  modal(`<h2>${esc(account)}</h2><p class="muted" style="margin-top:-6px">Anno fiscale ${fyLabel(y)}</p>
+    <table><thead><tr><th>Data</th><th>Luogo</th><th class="num">Importo</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
+    ${riporto}
     ${regs.map(r => `<tr><td>${fdate(r.date)}</td><td>${esc(r.place)}</td>
       <td class="num">${admin ? `<input type="number" step="0.01" min="0.01" value="${r.items[account]}" data-edit="${r.id}" style="width:110px;text-align:right">` : eur(r.items[account])}</td>
       ${admin ? `<td><button class="small danger" data-del="${r.id}">Elimina</button></td>` : ''}</tr>`).join('')}
     ${cls.map(c => `<tr><td>${fdate(c.date)}</td><td class="muted">Chiusura cassa</td><td class="num">−${eur(c.items[account])}</td>${admin ? '<td></td>' : ''}</tr>`).join('')}
-    </tbody></table>` : '<p class="muted">Nessuna registrazione.</p>'}
+    ${!regs.length && !cls.length ? `<tr><td colspan="4" class="muted">Nessun movimento in quest’anno.</td></tr>` : ''}
+    </tbody></table>
     ${admin && regs.length ? '<p class="msg err" id="dmsg"></p><p class="muted">Modifica un importo e premi Invio per salvare.</p>' : ''}`);
   const msg = t => { const m = $('#dmsg'); if (m) m.textContent = t; };
   const valid = list => { const { b } = balances(list); return FUNDS.every(a => b[a] > -0.005); };
@@ -549,7 +599,7 @@ function dettaglio(account) {
     if (!(v > 0)) return msg('Importo non valido.');
     const next = db.regs.map(r => r.id === id ? { ...r, items: { ...r.items, [account]: v } } : r);
     if (!valid(next)) return msg('La modifica renderebbe negativo il saldo di un conto.');
-    db.regs = next; save(); closeModal(); dettaglio(account); go(view);
+    db.regs = next; save(); closeModal(); dettaglio(account, y); go(view);
   });
   document.querySelectorAll('[data-del]').forEach(btn => btn.onclick = () => {
     if (!confirm(`Eliminare l’importo di “${account}” da questa registrazione?`)) return;
@@ -557,8 +607,40 @@ function dettaglio(account) {
     const next = db.regs.map(r => { if (r.id !== id) return r; const items = { ...r.items }; delete items[account]; return { ...r, items }; })
       .filter(r => Object.keys(r.items).length);
     if (!valid(next)) return msg('L’eliminazione renderebbe negativo il saldo di un conto.');
-    db.regs = next; save(); closeModal(); dettaglio(account); go(view);
+    db.regs = next; save(); closeModal(); dettaglio(account, y); go(view);
   });
+}
+
+/* ---------- 2b. Bilancio Storico ---------- */
+let bilY = null; // anno aperto nel Bilancio Storico
+function vBilancio() {
+  if (bilY != null) return vBilancioAnno(bilY);
+  const cur = currentFY();
+  $('#view').innerHTML = `<div class="card"><h2>Bilancio Storico</h2>
+    <p class="muted">Un bilancio per ogni anno fiscale (1 giugno – 31 maggio). Il 31 maggio l’app chiude l’anno da sola e lo archivia qui; il 1° giugno i conti ripartono dai saldi rimasti. Tocca un anno per vedere il rendiconto.</p>
+    ${fyYears().map(y => { const r = fyReport(y), isCur = y === cur;
+      return `<button class="fy${isCur ? ' cur' : ''}" data-y="${y}"><span class="yr">${r.label}</span>
+        <span class="what"><b>${isCur ? 'Anno in corso' : `Chiuso il 31/05/${y + 1} <span class="badge">automatico</span>`}</b>
+        <small>${r.regs.length} registrazion${r.regs.length === 1 ? 'e' : 'i'}${r.cls.length ? ` · ${r.cls.length} bonific${r.cls.length === 1 ? 'o' : 'i'}` : ''}</small></span>
+        <span class="amt">${eur(r.tot.close)}<small>${isCur ? 'cassa oggi' : 'saldo al 31/5'}</small></span></button>`; }).join('')}
+    <p class="muted" style="margin-top:12px">Un bilancio chiuso cambia solo se l’amministratore inserisce o corregge una registrazione con data in quell’anno.</p>
+  </div>`;
+  $('#view').querySelectorAll('[data-y]').forEach(b => b.onclick = () => { bilY = +b.dataset.y; vBilancioAnno(bilY); });
+}
+function vBilancioAnno(y) {
+  const rep = fyReport(y), isCur = y === currentFY();
+  $('#pageTitle').innerHTML = `Bilancio ${rep.label}<small>1 giugno ${y} – 31 maggio ${y + 1}</small>`;
+  $('#view').innerHTML = `<div class="card">
+    <p class="noprint" style="margin:0 0 10px"><button class="small" id="bilBack">← Tutti gli anni</button></p>
+    <h2>Bilancio ${rep.label}</h2>
+    <p class="muted">${isCur ? `Anno in corso: si chiuderà automaticamente il 31/05/${y + 1}` : `Chiuso automaticamente il 31/05/${y + 1}`}. Importi in euro.</p>
+    ${fyTable(rep, isCur)}
+    ${isCur ? '' : `<div class="note"><b>Riporto al 1° giugno ${y + 1}: ${eur(rep.tot.close)}</b><br>Il “Saldo 31/5” di ogni conto è diventato il “Riporto 1/6” dell’anno ${fyLabel(y + 1)}.</div>`}
+    ${rep.cls.length ? `<p class="muted">Bonific${rep.cls.length === 1 ? 'o' : 'i'} dell’anno: ${rep.cls.map(c => `${fdate(c.date)} – ${esc(c.by)} – ${esc(c.bank)} – ${eur(c.total)}`).join('; ')}.</p>` : ''}
+    <p class="noprint"><button class="small" onclick="window.print()">Stampa</button></p>
+  </div>`;
+  $('#bilBack').onclick = () => { bilY = null; go('bilancio'); };
+  $('#view').querySelectorAll('tr[data-d]').forEach(tr => tr.onclick = () => dettaglio(tr.dataset.d, y));
 }
 
 /* ---------- 3. Prima Nota ---------- */
@@ -698,6 +780,7 @@ function vChiusura() {
     if (bad) return msg.textContent = `Importo superiore alla cassa per “${bad[0]}”.`;
     if (!Object.keys(items).length) return msg.textContent = 'Inserisci almeno una somma da togliere.';
     const t = sum(Object.values(items));
+    if (!closedYearOk($('#cd').value, msg)) return;
     if (!confirm(`Registrare la chiusura per un totale di ${eur(t)}? I saldi verranno ridotti.`)) return;
     db.closings.push({ id: db.seq++, date: $('#cd').value, by: $('#cn').value.trim(), bank: $('#cb').value.trim(), items, total: t });
     save(); vChiusura();

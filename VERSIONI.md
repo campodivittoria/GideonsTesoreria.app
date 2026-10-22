@@ -3,6 +3,16 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 3.5 – 22/10/2026
+- **Anno fiscale 1 giugno – 31 maggio** per tutti gli account.
+- Nuova pagina **Bilancio Storico**: un bilancio per ogni anno fiscale (riporto 1/6, entrate, spese e
+  bonifici, saldo 31/5). Il 31 maggio l'anno si chiude da solo e viene archiviato; il 1° giugno i conti
+  ripartono dai saldi rimasti (riporto). La chiusura è contabile: non sposta denaro.
+- **Rendiconto del Campo** mostra l'anno fiscale in corso con la colonna "Riporto 1/6"; il dettaglio di
+  un conto parte dal riporto. Il Riepilogo riassume l'anno fiscale in corso.
+- Registrazioni o chiusure con data in un anno già chiuso: solo l'amministratore, con conferma; il
+  bilancio archiviato viene ricalcolato.
+
 ## 3.4 – 21/10/2026
 - Dati di prova: cassa attuale portata a circa 3.800 € (offerte scalate, quote più frequenti ma
   sempre multiple di 38 e 9 €). Proporzioni invariate: Offerte ≈ 40%, quote ≈ 20%, PWT ≈ 10%.
