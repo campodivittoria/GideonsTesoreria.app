@@ -120,8 +120,9 @@
   button.fy.cur { border-color:#b9c7da; background:#eef3fa; } button.fy.cur .yr { background:var(--brand); color:#fff; }
   .badge { display:inline-block; padding:1px 7px; border-radius:9px; font-size:.68rem; font-weight:700; background:#e6f4ec; color:var(--ok); vertical-align:middle; }
   .note { background:#eef3fa; border-left:4px solid var(--brand); padding:10px 12px; border-radius:6px; font-size:.88rem; margin:12px 0; }
-  table.fy5 th, table.fy5 td { font-size:.72rem; padding:6px 2px; } table.fy5 td:first-child { font-size:.74rem; }
-  @media (max-width:420px) { table.fy5 th, table.fy5 td { font-size:.66rem; padding:5px 1px; } table.fy5 td:first-child { font-size:.68rem; } }
+  table.fy5 th, table.fy5 td, table.fy5 tfoot td { font-size:.72rem; padding:6px 2px; } table.fy5 td:first-child { font-size:.74rem; }
+  table.fy5 tfoot td:first-child { font-size:.7rem; line-height:1.15; }
+  @media (max-width:420px) { table.fy5 th, table.fy5 td, table.fy5 tfoot td { font-size:.64rem; padding:5px 1px; } table.fy5 td:first-child { font-size:.66rem; } table.fy5 tfoot td:first-child { font-size:.62rem; } }
   #login { max-width:360px; margin:12vh auto; }
   #updBar { position:fixed; left:12px; right:12px; bottom:12px; z-index:30; background:var(--ok); color:#fff; padding:12px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:.95rem; }
   #updBar button { background:#fff; color:var(--ok); border:0; border-radius:6px; padding:8px 14px; font-weight:700; cursor:pointer; font-size:.95rem; }
@@ -174,7 +175,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '3.5'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '3.6'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)

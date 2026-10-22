@@ -3,6 +3,9 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 3.6 – 22/10/2026
+- Bilancio e Rendiconto: righe dei totali più compatte, i numeri non si sovrappongono sul telefono.
+
 ## 3.5 – 22/10/2026
 - **Anno fiscale 1 giugno – 31 maggio** per tutti gli account.
 - Nuova pagina **Bilancio Storico**: un bilancio per ogni anno fiscale (riporto 1/6, entrate, spese e
