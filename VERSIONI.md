@@ -3,6 +3,10 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 4.1 – 24/10/2026
+- Indirizzo ufficiale dell'app: https://gtesoreria.vercel.app (usato dal pulsante Condividi e nelle slide).
+- `/api/health` spiega in italiano cosa manca se il collegamento al database non funziona.
+
 ## 4.0 – 24/10/2026
 - **Dati condivisi tra tutti i dispositivi**: registrazioni, chiusure e account sono salvati su un
   server (API su Vercel + database MongoDB Atlas). Chi registra dal telefono viene visto subito dagli altri;

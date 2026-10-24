@@ -180,7 +180,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '4.0'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '4.1'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -503,7 +503,7 @@ function go(v) {
 }
 
 /* ---------- condividi ---------- */
-const APP_URL = location.origin.startsWith('http') ? location.origin + location.pathname.replace(/index\.html$/, '') : 'https://campodivittoria.github.io/GideonsTesoreria.app/';
+const APP_URL = 'https://gtesoreria.vercel.app/'; // indirizzo ufficiale da condividere
 const SHARE_TEXT = 'App Tesoreria Campo Gedeoni';
 $('#shareBtn').onclick = async () => {
   if (navigator.share) {
