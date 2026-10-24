@@ -3,6 +3,11 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 4.2 – 24/10/2026
+- Nuova registrazione: sotto "Spese del Campo" c'è la **Nota spese** per scrivere cosa è stato pagato;
+  è obbligatoria quando si inserisce un importo di spese. La nota compare nel dettaglio della
+  registrazione (Storico) e nel dettaglio del conto Spese del Campo (Rendiconto e Bilancio).
+
 ## 4.1 – 24/10/2026
 - Indirizzo ufficiale dell'app: https://gtesoreria.vercel.app (usato dal pulsante Condividi e nelle slide).
 - `/api/health` spiega in italiano cosa manca se il collegamento al database non funziona.
