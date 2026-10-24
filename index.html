@@ -126,6 +126,9 @@
   @media (max-width:420px) { table.fy5 th, table.fy5 td, table.fy5 tfoot td { font-size:.64rem; padding:5px 1px; } table.fy5 td:first-child { font-size:.66rem; } table.fy5 tfoot td:first-child { font-size:.62rem; } }
   #login { max-width:360px; margin:12vh auto; }
   #updBar { position:fixed; left:12px; right:12px; bottom:12px; z-index:30; background:var(--ok); color:#fff; padding:12px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:.95rem; }
+  #toast { position:fixed; left:50%; bottom:70px; transform:translateX(-50%) translateY(20px); background:#1d2733; color:#fff; padding:10px 16px; border-radius:8px; font-size:.9rem; opacity:0; pointer-events:none; transition:all .25s; z-index:40; max-width:90vw; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+  #toast.show { opacity:1; transform:translateX(-50%); }
+  #toast.ok { background:var(--ok); } #toast.err { background:var(--bad); }
   #updBar button { background:#fff; color:var(--ok); border:0; border-radius:6px; padding:8px 14px; font-weight:700; cursor:pointer; font-size:.95rem; }
   .hidden { display:none !important; }
   @media print { header button, nav, .noprint { display:none !important; } }
@@ -173,10 +176,11 @@
 
 <div id="modalRoot"></div>
 <div id="updBar" class="hidden"></div>
+<div id="toast"></div>
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '3.7'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '4.0'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -194,19 +198,26 @@ async function checkUpdate() {
   } catch(e) {}
 }
 // Utenti: quelli predefiniti, sostituiti da quelli salvati dall'amministratore in Impostazioni (su questo dispositivo)
-const DEFAULT_USERS = { user: { name: 'campodivittoria', pw: 'vittoriaT' }, admin: { name: 'amministratore', pw: '030287' } };
-const USERS_KEY = 'gedeoni_utenti';
-function users() { try { const u = JSON.parse(localStorage.getItem(USERS_KEY)); if (u && u.user && u.admin) return u; } catch(e){} return DEFAULT_USERS; }
+/* ---------- server condiviso (API su Vercel + MongoDB Atlas) ----------
+   Gli account veri e i dati del Campo stanno sul server: tutti i dispositivi vedono le stesse cose.
+   L'account di prova "test" resta locale, con dati inventati. */
+const VERCEL_URL = 'https://gtesoreria.vercel.app'; // indirizzo dell'API quando l'app è aperta da GitHub Pages
+const API_BASE = (location.protocol === 'file:' || location.hostname.endsWith('github.io')) ? VERCEL_URL : '';
+let token = null;      // token di accesso ricevuto dal server
+let dbVersion = 0;     // versione dei dati sul server (per accorgersi di modifiche da altri dispositivi)
+async function api(path, method = 'GET', body) {
+  let r;
+  try {
+    r = await fetch(API_BASE + '/api/' + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  } catch (e) { const err = new Error('server non raggiungibile (controlla la connessione)'); err.status = 0; throw err; }
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) { const err = new Error(j.error || ('errore ' + r.status)); err.status = r.status; err.data = j; throw err; }
+  return j;
+}
 const DEMO_USER = { name: 'test', pw: 'test' };
 // il nome utente non distingue maiuscole/minuscole (la tastiera del telefono mette la prima lettera maiuscola)
 const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
-function findUser(name) {
-  const u = users();
-  if (sameName(name, u.admin.name)) return { role: 'admin', pw: u.admin.pw, name: u.admin.name };
-  if (sameName(name, u.user.name)) return { role: 'user', pw: u.user.pw, name: u.user.name };
-  if (sameName(name, DEMO_USER.name)) return { role: 'admin', pw: DEMO_USER.pw, name: DEMO_USER.name, demo: true }; // amministratore, ma solo sui dati di prova
-  return null;
-}
+const isDemoName = name => sameName(name, DEMO_USER.name);
 const SPESE = 'Spese del Campo';
 const PRO = 'Pro Campo';
 const ACCOUNTS = ['Pro Campo','Offerte Gedeoni','Offerte Ausiliarie','PWT Gedeoni','PWT Ausiliarie',
@@ -250,7 +261,63 @@ function migrate(old) {
   }
   return db2;
 }
-function save() { try { localStorage.setItem(storageKey(), JSON.stringify(db)); } catch(e){ alert('Impossibile salvare i dati su questo dispositivo.'); } }
+function save() {
+  try { localStorage.setItem(storageKey(), JSON.stringify(db)); } catch(e){}
+  if (session && !session.demo) pushRemote();
+}
+/* Invio al server, una richiesta alla volta. Se nel frattempo un altro dispositivo ha salvato (409),
+   si prendono i dati del server e si avvisa di ripetere l'ultima operazione. */
+let pushChain = Promise.resolve();
+function pushRemote() {
+  pushChain = pushChain.then(async () => {
+    toast('Salvataggio…');
+    try {
+      const r = await api('data', 'PUT', { regs: db.regs, closings: db.closings, seq: db.seq, version: dbVersion });
+      dbVersion = r.version; toast('Salvato', 'ok');
+    } catch (e) {
+      if (e.status === 409) { applyRemote(e.data); toast('Nel frattempo un altro dispositivo ha salvato: dati aggiornati. La tua ultima operazione non è stata registrata, ripetila.', 'err', 9000); closeModal(); go(view); }
+      else if (e.status === 401) { toast('Accesso scaduto: entra di nuovo.', 'err'); doLogout(); }
+      else { toast('Non salvato: ' + e.message, 'err', 9000); await refreshRemote(true); }
+    }
+  });
+  return pushChain;
+}
+function applyRemote(r) { db = { regs: r.regs || [], closings: r.closings || [], seq: r.seq || 1 }; dbVersion = r.version || 0; try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e){} }
+const MIGRATED_KEY = 'gedeoni_trasferiti';
+// Carica i dati dal server; la prima volta propone di trasferire quelli rimasti su questo dispositivo
+async function loadRemote() {
+  const r = await api('data');
+  const local = load();
+  const hasLocal = local.regs.length || local.closings.length;
+  if (hasLocal && !r.regs.length && !r.closings.length && !localStorage.getItem(MIGRATED_KEY)) {
+    if (confirm(`Su questo dispositivo ci sono ${local.regs.length} registrazioni e ${local.closings.length} chiusure di cassa non ancora nel database condiviso. Caricarle adesso?`)) {
+      db = local; dbVersion = r.version || 0;
+      await api('data', 'PUT', { regs: db.regs, closings: db.closings, seq: db.seq, version: dbVersion }).then(x => { dbVersion = x.version; });
+      try { localStorage.setItem(MIGRATED_KEY, '1'); } catch(e){}
+      toast('Dati trasferiti nel database condiviso', 'ok'); return;
+    }
+    try { localStorage.setItem(MIGRATED_KEY, 'no'); } catch(e){}
+  }
+  if (hasLocal && JSON.stringify({ regs: local.regs, closings: local.closings }) !== JSON.stringify({ regs: r.regs, closings: r.closings })) {
+    try { localStorage.setItem('gedeoni_tesoreria_backup_locale', JSON.stringify(local)); } catch(e){} // copia di sicurezza dei vecchi dati locali
+  }
+  applyRemote(r);
+}
+// Rilegge dal server (ogni minuto e quando si torna sull'app); se c'è una versione nuova, aggiorna la pagina
+async function refreshRemote(force) {
+  if (!session || session.demo) return;
+  try {
+    const r = await api('data');
+    if (force || r.version !== dbVersion) { applyRemote(r); if (!$('#modalRoot').children.length) go(view); }
+  } catch (e) { if (e.status === 401) doLogout(); }
+}
+setInterval(() => { if (!document.hidden) refreshRemote(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshRemote(); });
+let toastTimer = null;
+function toast(text, kind = '', ms = 2500) {
+  const t = $('#toast'); t.textContent = text; t.className = 'show ' + kind;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = '', ms);
+}
 
 /* ---------- dati di prova per l'account test ---------- */
 function demoData() {
@@ -383,10 +450,14 @@ function closedYearOk(date, msgEl) {
 /* ---------- login ---------- */
 const SESSION_KEY = 'gedeoni_sessione';
 // fresh: true rigenera i dati di prova (nuovo accesso con l'account test)
-function enter(s, fresh) {
+async function enter(s, fresh) {
   session = s;
   if (s.demo) { const d = load(DEMO_KEY); db = fresh || !d.regs.length ? demoData() : d; save(); }
-  else db = load();
+  else {
+    token = s.token;
+    try { await loadRemote(); }
+    catch (e) { session = null; token = null; $('#loginMsg').textContent = e.status === 401 ? 'Accesso scaduto: entra di nuovo.' : 'Impossibile caricare i dati: ' + e.message; if (e.status === 401) try { localStorage.removeItem(SESSION_KEY); } catch(x){}; return; }
+  }
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#who').textContent = session.name + (session.demo ? ' (amministratore di prova)' : session.role === 'admin' ? ' (amministratore)' : '');
   $('#nav [data-v=impost]').classList.toggle('hidden', session.role !== 'admin' || session.demo);
@@ -394,16 +465,24 @@ function enter(s, fresh) {
   $('#lp').value = ''; $('#loginMsg').textContent = '';
   go('home');
 }
-$('#loginForm').addEventListener('submit', ev => {
+$('#loginForm').addEventListener('submit', async ev => {
   ev.preventDefault();
-  const u = findUser($('#lu').value);
-  if (u && u.pw === $('#lp').value) {
-    const s = { name: u.name, role: u.role, demo: !!u.demo };
-    try { if ($('#lr').checked) localStorage.setItem(SESSION_KEY, JSON.stringify(s)); else localStorage.removeItem(SESSION_KEY); } catch(e){}
-    enter(s, true);
-  } else $('#loginMsg').textContent = 'Utente o password non corretti.';
+  const name = $('#lu').value.trim(), pw = $('#lp').value, btn = $('#loginForm button.primary');
+  const remember = s => { try { if ($('#lr').checked) localStorage.setItem(SESSION_KEY, JSON.stringify(s)); else localStorage.removeItem(SESSION_KEY); } catch(e){} };
+  if (isDemoName(name)) {
+    if (pw !== DEMO_USER.pw) return $('#loginMsg').textContent = 'Utente o password non corretti.';
+    const s = { name: DEMO_USER.name, role: 'admin', demo: true }; remember(s); return enter(s, true);
+  }
+  btn.disabled = true; $('#loginMsg').textContent = 'Collegamento al server…';
+  try {
+    const r = await api('login', 'POST', { user: name, password: pw });
+    const s = { name: r.name, role: r.role, demo: false, token: r.token }; remember(s);
+    await enter(s);
+  } catch (e) { $('#loginMsg').textContent = e.status === 401 ? e.message : 'Impossibile collegarsi: ' + e.message; }
+  btn.disabled = false;
 });
-$('#logout').onclick = () => { closeMenu(); session = null; try { localStorage.removeItem(SESSION_KEY); } catch(e){} $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); };
+function doLogout() { closeMenu(); closeModal(); session = null; token = null; try { localStorage.removeItem(SESSION_KEY); } catch(e){} $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); }
+$('#logout').onclick = doLogout;
 $('#nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { go(b.dataset.v); closeMenu(); } });
 
 /* ---------- menu a tendina ---------- */
@@ -718,20 +797,23 @@ function vNota() {
 
 /* ---------- 5. Impostazioni (solo amministratore) ---------- */
 function vImpostazioni() {
-  const u = users();
+  $('#view').innerHTML = '<div class="card"><p class="muted">Caricamento…</p></div>';
+  api('users').then(u => renderImpostazioni(u)).catch(e => $('#view').innerHTML = `<div class="card"><p class="msg err">Impossibile leggere gli account: ${esc(e.message)}</p></div>`);
+}
+function renderImpostazioni(u) {
   $('#view').innerHTML = `<div class="card">
     <h2>Utenti e password</h2>
-    <p class="muted">Le modifiche valgono per <b>questo dispositivo</b>: l'app salva tutto sul telefono o computer in uso. Se cambi una password qui, dovrai cambiarla allo stesso modo sugli altri dispositivi dove si usa l'app.</p>
+    <p class="muted">Gli account sono salvati sul server: una modifica fatta qui vale per <b>tutti i dispositivi</b>. Chi è collegato con il vecchio nome o la vecchia password dovrà rientrare.</p>
     <form id="uf">
       <h3 style="font-size:1rem;margin:16px 0 8px">Utente generico (tesoriere)</h3>
       <div class="grid">
-        <div><label>Nome utente</label><input id="un" value="${esc(u.user.name)}" autocomplete="off" required></div>
+        <div><label>Nome utente</label><input id="un" value="${esc(u.user)}" autocomplete="off" required></div>
         <div><label>Nuova password <span class="muted">(vuoto = non cambiare)</span></label><input id="up" type="password" autocomplete="new-password"></div>
         <div><label>Ripeti la nuova password</label><input id="up2" type="password" autocomplete="new-password"></div>
       </div>
       <h3 style="font-size:1rem;margin:20px 0 8px">Amministratore</h3>
       <div class="grid">
-        <div><label>Nome utente</label><input id="an" value="${esc(u.admin.name)}" autocomplete="off" required></div>
+        <div><label>Nome utente</label><input id="an" value="${esc(u.admin)}" autocomplete="off" required></div>
         <div><label>Nuova password <span class="muted">(vuoto = non cambiare)</span></label><input id="ap" type="password" autocomplete="new-password"></div>
         <div><label>Ripeti la nuova password</label><input id="ap2" type="password" autocomplete="new-password"></div>
       </div>
@@ -742,30 +824,30 @@ function vImpostazioni() {
     </form>
   </div>`;
   const msg = (t, ok) => { const m = $('#umsg'); m.className = 'msg ' + (ok ? 'ok' : 'err'); m.textContent = t; };
-  const persist = nu => {
-    try { localStorage.setItem(USERS_KEY, JSON.stringify(nu)); } catch(e) { return msg('Impossibile salvare su questo dispositivo.'); }
-    // la sessione corrente segue il nuovo nome dell'amministratore
-    session.name = nu.admin.name; $('#who').textContent = nu.admin.name + ' (amministratore)';
-    try { if (localStorage.getItem(SESSION_KEY)) localStorage.setItem(SESSION_KEY, JSON.stringify({ name: nu.admin.name, role: 'admin' })); } catch(e){}
-    vImpostazioni(); msg('Salvato. Dalla prossima volta usa i nuovi dati per entrare.', true);
+  const send = async body => {
+    try {
+      const r = await api('users', 'PUT', body);
+      token = r.token; session.name = r.admin; $('#who').textContent = r.admin + ' (amministratore)';
+      try { if (localStorage.getItem(SESSION_KEY)) localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, token })); } catch(e){}
+      renderImpostazioni({ user: r.user, admin: r.admin }); $('#umsg').className = 'msg ok'; $('#umsg').textContent = 'Salvato. Dalla prossima volta usa i nuovi dati per entrare.';
+    } catch (e) { msg(e.message); }
   };
   $('#uf').onsubmit = ev => {
     ev.preventDefault();
-    if ($('#cp').value !== u.admin.pw) return msg('La password attuale dell’amministratore non è corretta.');
     const un = $('#un').value.trim(), up = $('#up').value, up2 = $('#up2').value;
     const an = $('#an').value.trim(), ap = $('#ap').value, ap2 = $('#ap2').value;
     if (!un || !an) return msg('I nomi utente non possono essere vuoti.');
     if (sameName(un, an)) return msg('I due nomi utente devono essere diversi.');
-    if (sameName(un, DEMO_USER.name) || sameName(an, DEMO_USER.name)) return msg(`“${DEMO_USER.name}” è riservato all’account di prova.`);
+    if (isDemoName(un) || isDemoName(an)) return msg(`“${DEMO_USER.name}” è riservato all’account di prova.`);
     if ((up && up.length < 4) || (ap && ap.length < 4)) return msg('Le password devono avere almeno 4 caratteri.');
     if (up !== up2) return msg('Le due password nuove dell’utente generico non coincidono.');
     if (ap !== ap2) return msg('Le due password nuove dell’amministratore non coincidono.');
-    persist({ user: { name: un, pw: up || u.user.pw }, admin: { name: an, pw: ap || u.admin.pw } });
+    send({ currentPassword: $('#cp').value, user: { name: un, password: up || undefined }, admin: { name: an, password: ap || undefined } });
   };
   $('#uReset').onclick = () => {
-    if ($('#cp').value !== u.admin.pw) return msg('Inserisci la password attuale dell’amministratore per confermare.');
+    if (!$('#cp').value) return msg('Inserisci la password attuale dell’amministratore per confermare.');
     if (!confirm('Ripristinare gli utenti e le password iniziali?')) return;
-    persist(JSON.parse(JSON.stringify(DEFAULT_USERS)));
+    send({ currentPassword: $('#cp').value, reset: true });
   };
 }
 
@@ -822,7 +904,8 @@ function vChiusura() {
 // riapre la sessione salvata con "Rimani connesso" (in fondo: tutte le funzioni e costanti sono già definite)
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e){}
-if (saved && findUser(saved.name)) { const u = findUser(saved.name); enter({ name: u.name, role: u.role, demo: !!u.demo }); }
+if (saved && saved.demo) enter({ name: DEMO_USER.name, role: 'admin', demo: true });
+else if (saved && saved.token) enter(saved);
 
 checkUpdate();
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });

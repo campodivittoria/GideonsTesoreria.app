@@ -3,6 +3,16 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 4.0 – 24/10/2026
+- **Dati condivisi tra tutti i dispositivi**: registrazioni, chiusure e account sono salvati su un
+  server (API su Vercel + database MongoDB Atlas). Chi registra dal telefono viene visto subito dagli altri;
+  l'app ricontrolla il server ogni minuto e quando si torna sull'app.
+- Accesso con password custodite sul server (non più nel codice). "Rimani connesso" vale 90 giorni.
+- Primo avvio: se sul dispositivo ci sono dati inseriti con le versioni precedenti, l'app propone di
+  caricarli nel database condiviso.
+- Se due persone salvano insieme, la seconda viene avvisata e vede i dati aggiornati.
+- L'account di prova `test` resta sul dispositivo, con dati inventati.
+
 ## 3.7 – 22/10/2026
 - L'anno fiscale si chiude con il **bonifico di chiusura**: se è registrato entro il 31 maggio l'anno si
   chiude il 31 maggio; se arriva dopo, l'anno resta aperto e si chiude il giorno del bonifico, e il nuovo
