@@ -3,6 +3,11 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 4.4 – 22/11/2026
+- **Importa elenco** nella pagina Membri e quote: si incolla la colonna dei nomi dal report Excel; "Mr" diventa
+  Gedeone, "Mrs" Ausiliaria, i titoli vengono tolti e i nomi già presenti saltati.
+- I titoli (Mr, Mrs, Sig., Sig.ra) vengono tolti anche quando si aggiunge un membro a mano.
+
 ## 4.3 – 22/11/2026
 - Nuova pagina **Membri e quote**: elenco di Gedeoni e Ausiliarie, chi ha pagato la quota annua dell'anno
   fiscale in corso e chi no, con il totale. L'amministratore imposta l'importo delle quote (38 € e 9 €),

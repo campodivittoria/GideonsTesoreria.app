@@ -190,7 +190,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '4.3'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '4.4'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -270,6 +270,13 @@ const QG = 'Quota annua Gedeoni', QA = 'Quota annua Ausiliarie';
 const QUOTA_ACC = { G: QG, A: QA };
 const TYPE_LABEL = { G: 'Gedeoni', A: 'Ausiliarie' }, TYPE_ONE = { G: 'Gedeone', A: 'Ausiliaria' };
 function norm(d) { d.members = d.members || []; d.quote = { G: 38, A: 9, ...(d.quote || {}) }; return d; }
+// toglie i titoli (Mr, Mrs, Sig., Sig.ra…) e restituisce anche il tipo che indicano: Mr → Gedeone, Mrs → Ausiliaria
+function parseMemberName(raw) {
+  let name = String(raw || '').split('\t')[0].replace(/\s+/g, ' ').trim(), type = null;
+  const m = name.match(/^(mrs|ms|miss|sig\.?ra|signora|mr|sig\.?|signor|sig)\.?\s+/i);
+  if (m) { type = /^(mrs|ms|miss|sig\.?ra|signora)$/i.test(m[1]) ? 'A' : 'G'; name = name.slice(m[0].length).trim(); }
+  return { name, type };
+}
 const memberName = id => (db.members.find(m => m.id === id) || {}).name || '?';
 // chi ha già pagato la quota nell'anno fiscale della data indicata (escludendo una registrazione, quella in modifica)
 function paidInFY(date, exceptRegId) {
@@ -668,7 +675,7 @@ function formRegistrazione(existing) {
   $('#rf').addEventListener('click', ev => {
     const c = ev.target.closest('.chip'); if (c) { const t = c.dataset.t, id = +c.dataset.m; sel[t].has(id) ? sel[t].delete(id) : sel[t].add(id); drawChips(t); refresh(); return; }
     const a = ev.target.closest('[data-add]'); if (!a) return;
-    const t = a.dataset.add, inp = $('#new' + t), name = inp.value.trim().replace(/\s+/g, ' ');
+    const t = a.dataset.add, inp = $('#new' + t), name = parseMemberName(inp.value).name;
     if (!name) return inp.focus();
     const dup = [...db.members, ...pending].find(m => m.type === t && m.name.toLowerCase() === name.toLowerCase());
     if (dup) sel[t].add(dup.id); else { const m = { id: db.seq++, name, type: t }; pending.push(m); sel[t].add(m.id); }
@@ -897,16 +904,36 @@ function vMembri() {
     </div>`;
   };
   $('#view').innerHTML = `${block('G')}${block('A')}
+    <div class="card"><h2>Importa elenco</h2>
+      <p class="muted">Copia da Excel la colonna con i nomi (es. “Mr Mario Rossi”, “Mrs Anna Bianchi Rossi”) e incollala qui, uno per riga. “Mr” diventa Gedeone, “Mrs” Ausiliaria; i titoli vengono tolti e chi è già in elenco viene saltato.</p>
+      <textarea id="imp" rows="6" placeholder="Mr Mario Rossi&#10;Mrs Anna Bianchi Rossi"></textarea>
+      <div class="actions" style="justify-content:flex-start"><button class="primary" id="impbtn">Importa</button></div>
+      <div class="msg" id="impmsg"></div></div>
     ${admin ? `<div class="card"><h2>Importo delle quote annue</h2><p class="muted">Vale per le prossime registrazioni; quelle già fatte restano con l’importo di allora.</p>
       <div class="grid"><div><label>Quota Gedeone (€)</label><input type="number" id="qg" min="0" step="0.01" value="${db.quote.G}"></div><div><label>Quota Ausiliaria (€)</label><input type="number" id="qa" min="0" step="0.01" value="${db.quote.A}"></div></div>
       <div class="actions" style="justify-content:flex-start"><button class="primary" id="qsave">Salva importi</button></div><div class="msg" id="qmsg"></div></div>` : ''}`;
   $('#view').querySelectorAll('[data-madd]').forEach(b => b.onclick = () => {
-    const t = b.dataset.madd, name = $('#mn' + t).value.trim().replace(/\s+/g, ' ');
+    const t = b.dataset.madd, name = parseMemberName($('#mn' + t).value).name;
     if (!name) return $('#mn' + t).focus();
     if (db.members.some(m => m.type === t && m.name.toLowerCase() === name.toLowerCase())) return $('#mm' + t).textContent = `${name} è già in elenco.`;
     db.members.push({ id: db.seq++, name, type: t }); save(); vMembri();
   });
   ['G', 'A'].forEach(t => $('#mn' + t).addEventListener('keydown', ev => { if (ev.key === 'Enter') $(`[data-madd="${t}"]`).click(); }));
+  $('#impbtn').onclick = () => {
+    const added = { G: 0, A: 0 }, skipped = [], noType = [];
+    for (const line of $('#imp').value.split(/\r?\n/)) {
+      const { name, type } = parseMemberName(line);
+      if (!name || /^(member|membro|nome)$/i.test(name)) continue;
+      if (!type) { noType.push(name); continue; }
+      if (db.members.some(m => m.type === type && m.name.toLowerCase() === name.toLowerCase())) { skipped.push(name); continue; }
+      db.members.push({ id: db.seq++, name, type }); added[type]++;
+    }
+    if (added.G + added.A) save();
+    vMembri();
+    const m = $('#impmsg'); m.className = 'msg ' + (noType.length ? 'err' : 'ok');
+    m.textContent = `Aggiunti ${added.G} Gedeoni e ${added.A} Ausiliarie.` + (skipped.length ? ` Già in elenco: ${skipped.length}.` : '') + (noType.length ? ` Senza “Mr” o “Mrs”, non importati: ${noType.join(', ')} (aggiungili a mano qui sopra).` : '');
+    m.scrollIntoView({ block: 'center' });
+  };
   if (!admin) return;
   $('#qsave').onclick = () => {
     const g = round(parseFloat($('#qg').value)), a = round(parseFloat($('#qa').value));
