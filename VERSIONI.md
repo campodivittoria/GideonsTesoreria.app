@@ -3,6 +3,15 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 4.3 – 22/11/2026
+- Nuova pagina **Membri e quote**: elenco di Gedeoni e Ausiliarie, chi ha pagato la quota annua dell'anno
+  fiscale in corso e chi no, con il totale. L'amministratore imposta l'importo delle quote (38 € e 9 €),
+  rinomina o segna come non attivo un membro.
+- **Nuova registrazione**: sotto *Quota annua Gedeoni* e *Quota annua Ausiliarie* basta toccare i nomi di chi
+  paga; l'importo si calcola da solo (persone × quota). Chi ha già pagato nell'anno è segnato. Un **nuovo
+  membro** si aggiunge direttamente lì e va nell'elenco.
+- I nomi compaiono nel dettaglio della registrazione e nel dettaglio dei conti delle quote.
+
 ## 4.2 – 24/10/2026
 - Nuova registrazione: sotto "Spese del Campo" c'è la **Nota spese** per scrivere cosa è stato pagato;
   è obbligatoria quando si inserisce un importo di spese. La nota compare nel dettaglio della

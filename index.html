@@ -124,6 +124,15 @@
   table.fy5 th, table.fy5 td, table.fy5 tfoot td { font-size:.72rem; padding:6px 2px; } table.fy5 td:first-child { font-size:.74rem; }
   table.fy5 tfoot td:first-child { font-size:.7rem; line-height:1.15; }
   @media (max-width:420px) { table.fy5 th, table.fy5 td, table.fy5 tfoot td { font-size:.64rem; padding:5px 1px; } table.fy5 td:first-child { font-size:.66rem; } table.fy5 tfoot td:first-child { font-size:.62rem; } }
+  /* membri e quote */
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 8px; }
+  .chip { border:1px solid var(--line); border-radius:16px; padding:7px 11px; background:#fff; font:inherit; font-size:.88rem; cursor:pointer; color:var(--ink); }
+  .chip.sel { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .chip.paid:not(.sel) { color:var(--muted); background:#f4f6f9; }
+  .chip small { font-size:.72rem; opacity:.85; }
+  .addm { display:flex; gap:6px; } .addm input { flex:1; min-width:0; } .addm button { white-space:nowrap; }
+  tr.quota td { background:#f7f9fc; }
+  input[readonly].ri { background:#eef3fa; font-weight:600; }
   #login { max-width:360px; margin:12vh auto; }
   #updBar { position:fixed; left:12px; right:12px; bottom:12px; z-index:30; background:var(--ok); color:#fff; padding:12px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:.95rem; }
   #toast { position:fixed; left:50%; bottom:70px; transform:translateX(-50%) translateY(20px); background:#1d2733; color:#fff; padding:10px 16px; border-radius:8px; font-size:.9rem; opacity:0; pointer-events:none; transition:all .25s; z-index:40; max-width:90vw; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.25); }
@@ -164,6 +173,7 @@
     <button data-v="rendiconto"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20v-8M11 20V6M16 20v-5M21 20V9"/></svg>Rendiconto del Campo</button>
     <button data-v="bilancio"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3zM5 8v12h14V8M10 12h4"/></svg>Bilancio Storico</button>
     <button data-v="nota"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Storico Registrazioni</button>
+    <button data-v="membri"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2.2.6 3.5 2.8 3.5 6"/></svg>Membri e quote</button>
     <button data-v="chiusura"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg>Chiusura Cassa Annua</button>
     <button data-v="impost" class="hidden"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Impostazioni</button>
     <div class="spacer"></div>
@@ -180,7 +190,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '4.2'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '4.3'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -247,10 +257,25 @@ const storageKey = () => session && session.demo ? DEMO_KEY : DB_KEY;
 function load(key = DB_KEY) {
   try {
     const d = JSON.parse(localStorage.getItem(key));
-    if (d && d.regs) return d;
-    if (d && d.entries) return migrate(d);
+    if (d && d.regs) return norm(d);
+    if (d && d.entries) return norm(migrate(d));
   } catch(e){}
-  return { regs: [], closings: [], seq: 1 };
+  return norm({ regs: [], closings: [], seq: 1 });
+}
+/* Membri e quote annue:
+   members: [{id, name, type: 'G' (Gedeone) | 'A' (Ausiliaria), inactive?}]
+   quote:   { G: 38, A: 9 }  importo della quota annua per persona
+   Una registrazione può avere reg.quote = { G: [id…], A: [id…] }: chi ha pagato la quota in quella riunione. */
+const QG = 'Quota annua Gedeoni', QA = 'Quota annua Ausiliarie';
+const QUOTA_ACC = { G: QG, A: QA };
+const TYPE_LABEL = { G: 'Gedeoni', A: 'Ausiliarie' }, TYPE_ONE = { G: 'Gedeone', A: 'Ausiliaria' };
+function norm(d) { d.members = d.members || []; d.quote = { G: 38, A: 9, ...(d.quote || {}) }; return d; }
+const memberName = id => (db.members.find(m => m.id === id) || {}).name || '?';
+// chi ha già pagato la quota nell'anno fiscale della data indicata (escludendo una registrazione, quella in modifica)
+function paidInFY(date, exceptRegId) {
+  const f = fyOfDate(date), to = f.to || '9999-12-31', paid = new Set();
+  for (const r of db.regs) if (r.id !== exceptRegId && r.quote && r.date >= f.from && r.date <= to) [...(r.quote.G || []), ...(r.quote.A || [])].forEach(id => paid.add(id));
+  return paid;
 }
 // Converte il vecchio formato (una riga per conto) nel nuovo (registrazione con più conti)
 function migrate(old) {
@@ -272,7 +297,7 @@ function pushRemote() {
   pushChain = pushChain.then(async () => {
     toast('Salvataggio…');
     try {
-      const r = await api('data', 'PUT', { regs: db.regs, closings: db.closings, seq: db.seq, version: dbVersion });
+      const r = await api('data', 'PUT', { regs: db.regs, closings: db.closings, seq: db.seq, members: db.members, quote: db.quote, version: dbVersion });
       dbVersion = r.version; toast('Salvato', 'ok');
     } catch (e) {
       if (e.status === 409) { applyRemote(e.data); toast('Nel frattempo un altro dispositivo ha salvato: dati aggiornati. La tua ultima operazione non è stata registrata, ripetila.', 'err', 9000); closeModal(); go(view); }
@@ -282,7 +307,7 @@ function pushRemote() {
   });
   return pushChain;
 }
-function applyRemote(r) { db = { regs: r.regs || [], closings: r.closings || [], seq: r.seq || 1 }; dbVersion = r.version || 0; try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e){} }
+function applyRemote(r) { db = norm({ regs: r.regs || [], closings: r.closings || [], seq: r.seq || 1, members: r.members, quote: r.quote }); dbVersion = r.version || 0; try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e){} }
 const MIGRATED_KEY = 'gedeoni_trasferiti';
 // Carica i dati dal server; la prima volta propone di trasferire quelli rimasti su questo dispositivo
 async function loadRemote() {
@@ -292,7 +317,7 @@ async function loadRemote() {
   if (hasLocal && !r.regs.length && !r.closings.length && !localStorage.getItem(MIGRATED_KEY)) {
     if (confirm(`Su questo dispositivo ci sono ${local.regs.length} registrazioni e ${local.closings.length} chiusure di cassa non ancora nel database condiviso. Caricarle adesso?`)) {
       db = local; dbVersion = r.version || 0;
-      await api('data', 'PUT', { regs: db.regs, closings: db.closings, seq: db.seq, version: dbVersion }).then(x => { dbVersion = x.version; });
+      await api('data', 'PUT', { regs: db.regs, closings: db.closings, seq: db.seq, members: db.members, quote: db.quote, version: dbVersion }).then(x => { dbVersion = x.version; });
       try { localStorage.setItem(MIGRATED_KEY, '1'); } catch(e){}
       toast('Dati trasferiti nel database condiviso', 'ok'); return;
     }
@@ -330,7 +355,19 @@ function demoData() {
     'Convention regionale', 'Chiesa di Santa Croce Camerina', 'Chiesa di Ispica', 'Chiesa di Pozzallo'];
   const NAMES = ['Giuseppe Russo', 'Salvatore Vitale', 'Antonio Greco', 'Francesco Puglisi'];
   const BANKS = ['Banca Agricola Popolare di Ragusa', 'Intesa Sanpaolo', 'UniCredit', 'Poste Italiane'];
-  const d = { regs: [], closings: [], seq: 1 };
+  const d = norm({ regs: [], closings: [], seq: 1 });
+  const GED = ['Giuseppe Russo', 'Salvatore Vitale', 'Antonio Greco', 'Francesco Puglisi', 'Giovanni Leone', 'Carmelo Distefano', 'Vincenzo Cascone',
+    'Angelo Occhipinti', 'Rosario Iacono', 'Giorgio Licitra', 'Emanuele Cannata', 'Paolo Arezzo', 'Michele Battaglia', 'Daniele Schembari'];
+  const AUS = ['Maria Russo', 'Concetta Vitale', 'Giovanna Greco', 'Rosa Puglisi', 'Lucia Leone', 'Anna Cascone', 'Carmela Iacono', 'Grazia Licitra', 'Elena Arezzo'];
+  GED.forEach(name => d.members.push({ id: d.seq++, name, type: 'G' }));
+  AUS.forEach(name => d.members.push({ id: d.seq++, name, type: 'A' }));
+  const paidFY = {}; // anno nominale → id di chi ha già pagato
+  const payers = (t, n, date) => {
+    const y = nominalFY(date), set = paidFY[y] || (paidFY[y] = new Set());
+    const free = d.members.filter(m => m.type === t && !set.has(m.id)), out = [];
+    while (out.length < n && free.length) out.push(free.splice(Math.floor(rnd() * free.length), 1)[0].id);
+    out.forEach(id => set.add(id)); return out;
+  };
   // 100 registrazioni distribuite su 24 mesi (ottobre 2024 → settembre 2026)
   const start = new Date(2024, 9, 1);
   for (let i = 0; i < 100; i++) {
@@ -349,10 +386,14 @@ function demoData() {
     if (rnd() < .12) items['Offerte per la Convention'] = amt(5, 24);
     if (rnd() < .1) items['Offerte nuovi Gedeoni'] = amt(10, 20);
     if (rnd() < .08) items['Offerte nuovi Ausiliarie'] = amt(7, 12);
-    if (rnd() < .27) items['Quota annua Gedeoni'] = 38 * (rnd() < .75 ? 1 : 2); // 38 € a Gedeone
-    if (rnd() < .25) items['Quota annua Ausiliarie'] = 9 * (1 + Math.floor(rnd() * 3)); // 9 € ad Ausiliaria
+    const quote = { G: rnd() < .27 ? payers('G', rnd() < .75 ? 1 : 2, date) : [], A: rnd() < .25 ? payers('A', 1 + Math.floor(rnd() * 3), date) : [] };
+    if (quote.G.length) items[QG] = 38 * quote.G.length; // 38 € a Gedeone
+    if (quote.A.length) items[QA] = 9 * quote.A.length;  // 9 € ad Ausiliaria
     if (rnd() < .3) items[SPESE] = amt(2, Math.min(24, items[PRO]));
-    d.regs.push({ id: d.seq++, date, place: pick(PLACES), items, by: 'test' });
+    const reg = { id: d.seq++, date, place: pick(PLACES), items, by: 'test' };
+    if (quote.G.length || quote.A.length) reg.quote = quote;
+    if (items[SPESE]) reg.speseNote = pick(['Stampa volantini', 'Rimborso benzina', 'Cancelleria', 'Affitto sala', 'Spese postali']);
+    d.regs.push(reg);
   }
   // bonifici di chiusura dell'anno fiscale: il primo in ritardo (8 giugno 2025), il secondo in tempo (28 maggio 2026); tolgono circa il 62% di ogni conto
   for (const [date, idx] of [['2025-06-08', 0], ['2026-05-28', 1]]) {
@@ -486,7 +527,7 @@ $('#logout').onclick = doLogout;
 $('#nav').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { go(b.dataset.v); closeMenu(); } });
 
 /* ---------- menu a tendina ---------- */
-const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', bilancio: 'Bilancio Storico', nota: 'Storico Registrazioni', chiusura: 'Chiusura Cassa Annua', impost: 'Impostazioni' };
+const TITLES = { home: 'Riepilogo', rendiconto: 'Rendiconto del Campo', bilancio: 'Bilancio Storico', nota: 'Storico Registrazioni', membri: 'Membri e quote', chiusura: 'Chiusura Cassa Annua', impost: 'Impostazioni' };
 function openMenu() { document.body.classList.add('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'true'); }
 function closeMenu() { document.body.classList.remove('menu-open'); $('#menuBtn').setAttribute('aria-expanded', 'false'); }
 $('#menuBtn').onclick = () => document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
@@ -499,7 +540,7 @@ function go(v) {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   if (v === 'impost' && (session.role !== 'admin' || session.demo)) v = view = 'home';
   if (v !== 'bilancio') bilY = null;
-  ({home: vHome, rendiconto: vRendiconto, bilancio: vBilancio, nota: vNota, chiusura: vChiusura, impost: vImpostazioni})[v]();
+  ({home: vHome, rendiconto: vRendiconto, bilancio: vBilancio, nota: vNota, membri: vMembri, chiusura: vChiusura, impost: vImpostazioni})[v]();
 }
 
 /* ---------- condividi ---------- */
@@ -580,6 +621,12 @@ function formRegistrazione(existing) {
   const otherRegs = existing ? db.regs.filter(r => r.id !== existing.id) : db.regs;
   const { b } = balances(otherRegs);
   const it = existing ? existing.items : {};
+  const sel = { G: new Set(existing && existing.quote ? existing.quote.G || [] : []), A: new Set(existing && existing.quote ? existing.quote.A || [] : []) };
+  const pending = []; // nuovi membri aggiunti da questa registrazione (entrano nell'elenco al salvataggio)
+  const quotaRow = t => `<tr class="quota"><td colspan="2" style="padding-top:0">
+      <div class="chips" id="chips${t}"></div>
+      <div class="addm"><input id="new${t}" placeholder="${t === 'G' ? 'Nuovo gedeone' : 'Nuova ausiliaria'}: nome e cognome" maxlength="60"><button type="button" class="small" data-add="${t}">＋ Aggiungi</button></div>
+    </td></tr>`;
   modal(`<h2>${existing ? 'Modifica registrazione' : 'Nuova Registrazione'}</h2>
     <form id="rf">
       <div class="grid">
@@ -590,7 +637,7 @@ function formRegistrazione(existing) {
       ${ACCOUNTS.map((a, i) => `<tr${a === SPESE ? ' class="spese"' : ''}><td>${esc(a)}${a === SPESE ? `<br><span class="muted">tolte da ${PRO}</span>` : ''}</td>
         <td><input type="number" class="ri" data-i="${i}" min="0" step="0.01" value="${it[a] ?? ''}" placeholder="0,00" inputmode="decimal" style="text-align:right;width:120px"></td></tr>${a === SPESE ? `
         <tr class="spese"><td colspan="2" style="padding-top:0"><label for="rsn" style="margin:0 0 4px">Nota spese – cosa è stato pagato</label>
-          <textarea id="rsn" rows="2" maxlength="500" placeholder="es. stampa volantini 25 €, rimborso benzina 30 €" style="resize:vertical">${esc(existing ? existing.speseNote || '' : '')}</textarea></td></tr>` : ''}`).join('')}
+          <textarea id="rsn" rows="2" maxlength="500" placeholder="es. stampa volantini 25 €, rimborso benzina 30 €" style="resize:vertical">${esc(existing ? existing.speseNote || '' : '')}</textarea></td></tr>` : ''}${a === QG ? quotaRow('G') : a === QA ? quotaRow('A') : ''}`).join('')}
       </tbody><tfoot>
         <tr><td>Totale entrate</td><td class="num" id="rt">${eur(0)}</td></tr>
         <tr id="rnRow" class="hidden"><td>Totale al netto delle spese</td><td class="num" id="rn">${eur(0)}</td></tr>
@@ -605,13 +652,37 @@ function formRegistrazione(existing) {
   };
   const inputs = [...document.querySelectorAll('.ri')];
   const read = () => { const items = {}; inputs.forEach(i => { const v = round(parseFloat(i.value)); if (v > 0) items[ACCOUNTS[+i.dataset.i]] = v; }); return items; };
+  const qInput = t => inputs[ACCOUNTS.indexOf(QUOTA_ACC[t])];
+  // elenco dei nomi da toccare: l'importo della quota si calcola da solo (persone × quota)
+  const drawChips = t => {
+    const paid = paidInFY($('#rd').value || today(), existing && existing.id);
+    const list = [...db.members, ...pending].filter(m => m.type === t && (!m.inactive || sel[t].has(m.id))).sort((x, y) => x.name.localeCompare(y.name, 'it'));
+    $('#chips' + t).innerHTML = list.length ? list.map(m => `<button type="button" class="chip${sel[t].has(m.id) ? ' sel' : ''}${paid.has(m.id) ? ' paid' : ''}" data-m="${m.id}" data-t="${t}">${sel[t].has(m.id) ? '✓ ' : ''}${esc(m.name)}${paid.has(m.id) ? ' <small>già pagato</small>' : ''}</button>`).join('')
+      : `<span class="muted">Nessun ${TYPE_ONE[t].toLowerCase()} in elenco: aggiungilo qui sotto.</span>`;
+    const n = sel[t].size, inp = qInput(t);
+    if (n) { inp.value = round(n * db.quote[t]); inp.readOnly = true; inp.title = `${n} × ${eur(db.quote[t])}`; }
+    else if (inp.readOnly) { inp.value = ''; inp.readOnly = false; inp.title = ''; }
+    inp.closest('tr').querySelector('td').innerHTML = `${esc(QUOTA_ACC[t])}<br><span class="muted">${n ? `${n} × ${eur(db.quote[t])}` : `tocca i nomi · ${eur(db.quote[t])} a persona`}</span>`;
+  };
+  const drawAll = () => { drawChips('G'); drawChips('A'); refresh(); };
+  $('#rf').addEventListener('click', ev => {
+    const c = ev.target.closest('.chip'); if (c) { const t = c.dataset.t, id = +c.dataset.m; sel[t].has(id) ? sel[t].delete(id) : sel[t].add(id); drawChips(t); refresh(); return; }
+    const a = ev.target.closest('[data-add]'); if (!a) return;
+    const t = a.dataset.add, inp = $('#new' + t), name = inp.value.trim().replace(/\s+/g, ' ');
+    if (!name) return inp.focus();
+    const dup = [...db.members, ...pending].find(m => m.type === t && m.name.toLowerCase() === name.toLowerCase());
+    if (dup) sel[t].add(dup.id); else { const m = { id: db.seq++, name, type: t }; pending.push(m); sel[t].add(m.id); }
+    inp.value = ''; drawChips(t); refresh();
+  });
+  ['G', 'A'].forEach(t => $('#new' + t).addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); $(`[data-add="${t}"]`).click(); } }));
+  $('#rd').addEventListener('change', drawAll);
   const refresh = () => {
     const it = read(), r = { items: it };
     $('#rt').textContent = eur(regTotal(r));
     $('#rnRow').classList.toggle('hidden', !it[SPESE]);
     $('#rn').textContent = eur(regNet(r));
   };
-  inputs.forEach(i => i.oninput = refresh); refresh();
+  inputs.forEach(i => i.oninput = refresh); drawAll();
   $('#rCancel').onclick = closeModal;
   $('#rf').onsubmit = ev => {
     ev.preventDefault();
@@ -624,9 +695,12 @@ function formRegistrazione(existing) {
     if (!closedYearOk($('#rd').value, msg)) return;
     const reg = { id: existing ? existing.id : db.seq++, date: $('#rd').value, place: $('#rl').value.trim(), items, by: existing ? existing.by : session.name };
     if (items[SPESE]) reg.speseNote = speseNote;
+    if (sel.G.size || sel.A.size) reg.quote = { G: [...sel.G], A: [...sel.A] };
     if (existing) reg.editedBy = session.name;
     const next = [...otherRegs, reg];
     if (!valid(next)) return msg.textContent = 'Con questi importi un conto andrebbe sotto zero (controlla le chiusure di cassa successive).';
+    const used = new Set([...sel.G, ...sel.A]);
+    db.members = [...db.members, ...pending.filter(m => used.has(m.id))];
     db.regs = next; save(); closeModal(); go(view);
   };
 }
@@ -699,7 +773,7 @@ function dettaglio(account, y = currentFY()) {
   modal(`<h2>${esc(account)}</h2><p class="muted" style="margin-top:-6px">Anno fiscale ${fyLabel(y)}</p>
     <table><thead><tr><th>Data</th><th>Luogo</th><th class="num">Importo</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
     ${riporto}
-    ${regs.map(r => `<tr><td>${fdate(r.date)}</td><td>${esc(r.place)}${account === SPESE && r.speseNote ? `<br><span class="muted" style="white-space:pre-wrap">${esc(r.speseNote)}</span>` : ''}</td>
+    ${regs.map(r => `<tr><td>${fdate(r.date)}</td><td>${esc(r.place)}${account === SPESE && r.speseNote ? `<br><span class="muted" style="white-space:pre-wrap">${esc(r.speseNote)}</span>` : ''}${quoteNames(r, account) ? `<br><span class="muted">${quoteNames(r, account)}</span>` : ''}</td>
       <td class="num">${admin ? `<input type="number" step="0.01" min="0.01" value="${r.items[account]}" data-edit="${r.id}" style="width:110px;text-align:right">` : eur(r.items[account])}</td>
       ${admin ? `<td><button class="small danger" data-del="${r.id}">Elimina</button></td>` : ''}</tr>`).join('')}
     ${cls.map(c => `<tr><td>${fdate(c.date)}</td><td class="muted">Chiusura cassa</td><td class="num">−${eur(c.items[account])}</td>${admin ? '<td></td>' : ''}</tr>`).join('')}
@@ -784,7 +858,7 @@ function vNota() {
     const r = db.regs.find(x => x.id === +b.dataset.reg);
     modal(`<h2>Registrazione del ${fdate(r.date)}</h2>
       <dl><dt>Luogo</dt><dd>${esc(r.place) || '—'}</dd><dt>Inserita da</dt><dd>${esc(r.by || '')}${r.editedBy ? ` <span class="muted">(modificata da ${esc(r.editedBy)})</span>` : ''}</dd></dl>
-      <table><tbody>${ACCOUNTS.filter(a => r.items[a]).map(a => `<tr><td>${esc(a)}</td><td class="num">${a === SPESE ? '−' : ''}${eur(r.items[a])}</td></tr>${a === SPESE && r.speseNote ? `<tr class="spese"><td colspan="2" style="font-size:.88rem;white-space:pre-wrap"><b>Nota spese:</b> ${esc(r.speseNote)}</td></tr>` : ''}`).join('')}</tbody>
+      <table><tbody>${ACCOUNTS.filter(a => r.items[a]).map(a => `<tr><td>${esc(a)}</td><td class="num">${a === SPESE ? '−' : ''}${eur(r.items[a])}</td></tr>${a === SPESE && r.speseNote ? `<tr class="spese"><td colspan="2" style="font-size:.88rem;white-space:pre-wrap"><b>Nota spese:</b> ${esc(r.speseNote)}</td></tr>` : ''}${quoteNames(r, a) ? `<tr><td colspan="2" class="muted" style="font-size:.85rem">${quoteNames(r, a)}</td></tr>` : ''}`).join('')}</tbody>
       <tfoot><tr><td>Totale entrate</td><td class="num">${eur(regTotal(r))}</td></tr>${r.items[SPESE] ? `<tr><td>Al netto delle spese</td><td class="num">${eur(regNet(r))}</td></tr>` : ''}</tfoot></table>
       ${editBtn('data-edit-reg', r.id)}`);
     if (admin) $('[data-edit-reg]').onclick = () => { closeModal(); formRegistrazione(r); };
@@ -797,6 +871,63 @@ function vNota() {
       <tfoot><tr><td>Totale tolto dalla cassa</td><td class="num">−${eur(c.total)}</td></tr></tfoot></table>
       ${editBtn('data-edit-cl', c.id)}`);
     if (admin) $('[data-edit-cl]').onclick = () => { closeModal(); formChiusura(c); };
+  });
+}
+
+// nomi di chi ha pagato la quota in una registrazione, per il conto indicato
+function quoteNames(r, acc) {
+  const t = acc === QG ? 'G' : acc === QA ? 'A' : null;
+  return t && r.quote && r.quote[t] && r.quote[t].length ? r.quote[t].map(id => esc(memberName(id))).join(', ') : '';
+}
+
+/* ---------- 4b. Membri e quote annue ---------- */
+function vMembri() {
+  const admin = session.role === 'admin', f = fyOfDate(today()), paid = paidInFY(today());
+  const block = t => {
+    const list = db.members.filter(m => m.type === t).sort((x, y) => (!!x.inactive - !!y.inactive) || x.name.localeCompare(y.name, 'it'));
+    const act = list.filter(m => !m.inactive), np = act.filter(m => paid.has(m.id)).length;
+    return `<div class="card">
+      <h2>${TYPE_LABEL[t]} <span class="muted" style="font-size:.9rem;font-weight:400">· quota ${eur(db.quote[t])}</span></h2>
+      <p class="muted">${act.length} attiv${t === 'G' ? 'i' : 'e'} · hanno pagato la quota ${f.label}: <b>${np}</b> su ${act.length} (${eur(np * db.quote[t])})</p>
+      ${list.length ? `<table><tbody>${list.map(m => `<tr${m.inactive ? ' class="muted"' : ''}><td>${esc(m.name)}${m.inactive ? ' <small>(non attivo)</small>' : ''}</td>
+        <td class="num">${paid.has(m.id) ? '<span class="badge">✓ pagato</span>' : m.inactive ? '' : '<span class="muted">da pagare</span>'}</td>
+        ${admin ? `<td class="num"><button class="small" data-edm="${m.id}">✎</button></td>` : ''}</tr>`).join('')}</tbody></table>` : '<p class="muted">Nessuno in elenco.</p>'}
+      <div class="addm" style="margin-top:12px"><input id="mn${t}" placeholder="Nome e cognome" maxlength="60"><button class="small" data-madd="${t}">＋ Aggiungi ${TYPE_ONE[t].toLowerCase()}</button></div>
+      <div class="msg err" id="mm${t}"></div>
+    </div>`;
+  };
+  $('#view').innerHTML = `${block('G')}${block('A')}
+    ${admin ? `<div class="card"><h2>Importo delle quote annue</h2><p class="muted">Vale per le prossime registrazioni; quelle già fatte restano con l’importo di allora.</p>
+      <div class="grid"><div><label>Quota Gedeone (€)</label><input type="number" id="qg" min="0" step="0.01" value="${db.quote.G}"></div><div><label>Quota Ausiliaria (€)</label><input type="number" id="qa" min="0" step="0.01" value="${db.quote.A}"></div></div>
+      <div class="actions" style="justify-content:flex-start"><button class="primary" id="qsave">Salva importi</button></div><div class="msg" id="qmsg"></div></div>` : ''}`;
+  $('#view').querySelectorAll('[data-madd]').forEach(b => b.onclick = () => {
+    const t = b.dataset.madd, name = $('#mn' + t).value.trim().replace(/\s+/g, ' ');
+    if (!name) return $('#mn' + t).focus();
+    if (db.members.some(m => m.type === t && m.name.toLowerCase() === name.toLowerCase())) return $('#mm' + t).textContent = `${name} è già in elenco.`;
+    db.members.push({ id: db.seq++, name, type: t }); save(); vMembri();
+  });
+  ['G', 'A'].forEach(t => $('#mn' + t).addEventListener('keydown', ev => { if (ev.key === 'Enter') $(`[data-madd="${t}"]`).click(); }));
+  if (!admin) return;
+  $('#qsave').onclick = () => {
+    const g = round(parseFloat($('#qg').value)), a = round(parseFloat($('#qa').value));
+    if (!(g > 0) || !(a > 0)) { $('#qmsg').className = 'msg err'; return $('#qmsg').textContent = 'Inserisci importi validi.'; }
+    db.quote = { G: g, A: a }; save(); vMembri();
+  };
+  $('#view').querySelectorAll('[data-edm]').forEach(b => b.onclick = () => {
+    const m = db.members.find(x => x.id === +b.dataset.edm);
+    const usedIn = db.regs.filter(r => r.quote && [...(r.quote.G || []), ...(r.quote.A || [])].includes(m.id)).length;
+    modal(`<h2>${esc(m.name)}</h2><p class="muted">${TYPE_ONE[m.type]} · quote registrate: ${usedIn}</p>
+      <label>Nome e cognome</label><input id="emn" value="${esc(m.name)}" maxlength="60">
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--ink)"><input type="checkbox" id="emi" ${m.inactive ? 'checked' : ''} style="width:18px;height:18px;margin:0">Non più attivo (non compare nelle registrazioni)</label>
+      <div class="msg err" id="emmsg"></div>
+      <div class="actions">${usedIn ? '' : '<button class="small danger" id="emdel" style="margin-right:auto">Elimina</button>'}<button class="primary" id="emsave">Salva</button></div>`);
+    $('#emsave').onclick = () => {
+      const name = $('#emn').value.trim().replace(/\s+/g, ' ');
+      if (!name) return $('#emmsg').textContent = 'Il nome non può essere vuoto.';
+      db.members = db.members.map(x => x.id === m.id ? { ...x, name, ...($('#emi').checked ? { inactive: true } : { inactive: undefined }) } : x);
+      save(); closeModal(); vMembri();
+    };
+    if (!usedIn) $('#emdel').onclick = () => { if (!confirm(`Eliminare ${m.name} dall’elenco?`)) return; db.members = db.members.filter(x => x.id !== m.id); save(); closeModal(); vMembri(); };
   });
 }
 
