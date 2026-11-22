@@ -192,7 +192,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '4.5'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '4.6'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -278,6 +278,28 @@ function parseMemberName(raw) {
   const m = name.match(/^(mrs|ms|miss|sig\.?ra|signora|mr|sig\.?|signor|sig)\.?\s+/i);
   if (m) { type = /^(mrs|ms|miss|sig\.?ra|signora)$/i.test(m[1]) ? 'A' : 'G'; name = name.slice(m[0].length).trim(); }
   return { name, type };
+}
+/* Coniugi: m.spouseId = id del coniuge (impostato dall'amministratore), 0 = nessuno, assente = automatico.
+   In automatico la moglie (Ausiliaria) è collegata al marito (Gedeone) se il suo nome finisce con il cognome
+   di lui, e solo se l'abbinamento è unico (es. "Serafina Famà Di Giacomo" ↔ "Salvatore Di Giacomo"). */
+function autoSpouses(list) {
+  const norm = x => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const pairs = new Map(), byA = new Map(), byG = new Map();
+  for (const a of list.filter(m => m.type === 'A')) for (const g of list.filter(m => m.type === 'G')) {
+    const gw = norm(g.name).split(' '), an = norm(a.name);
+    // cognome del marito: le parole dopo il nome (prova anche se ha due nomi), almeno una parola
+    const ok = gw.slice(1).some((_, i) => { const sur = gw.slice(i + 1).join(' '); return sur && an.endsWith(' ' + sur) && an.split(' ').length > sur.split(' ').length; });
+    if (ok) { byA.set(a.id, [...(byA.get(a.id) || []), g.id]); byG.set(g.id, [...(byG.get(g.id) || []), a.id]); }
+  }
+  for (const [a, gs] of byA) if (gs.length === 1 && byG.get(gs[0]).length === 1) { pairs.set(a, gs[0]); pairs.set(gs[0], a); }
+  return pairs;
+}
+function spouseOf(m, list = db.members) {
+  if (m.spouseId === 0) return null;
+  if (m.spouseId) return list.find(x => x.id === m.spouseId) || null;
+  const other = list.find(x => x.spouseId === m.id); if (other) return other; // collegato a mano dall'altro lato
+  const id = autoSpouses(list.filter(x => x.spouseId === undefined)).get(m.id);
+  return id ? list.find(x => x.id === id) : null;
 }
 const memberName = id => (db.members.find(m => m.id === id) || {}).name || '?';
 // chi ha già pagato la quota nell'anno fiscale della data indicata (escludendo una registrazione, quella in modifica)
@@ -678,7 +700,17 @@ function formRegistrazione(existing) {
   };
   const drawAll = () => { drawChips('G'); drawChips('A'); refresh(); };
   $('#rf').addEventListener('click', ev => {
-    const c = ev.target.closest('.chip'); if (c) { const t = c.dataset.t, id = +c.dataset.m; sel[t].has(id) ? sel[t].delete(id) : sel[t].add(id); drawChips(t); refresh(); return; }
+    const c = ev.target.closest('.chip');
+    if (c) {
+      const t = c.dataset.t, id = +c.dataset.m, all = [...db.members, ...pending];
+      if (sel[t].has(id)) sel[t].delete(id); // togliere: solo questo nome
+      else {
+        sel[t].add(id);
+        const sp = spouseOf(all.find(m => m.id === id), all), paid = paidInFY($('#rd').value || today(), existing && existing.id);
+        if (sp && !sp.inactive && !paid.has(sp.id) && !sel[sp.type].has(sp.id)) sel[sp.type].add(sp.id); // e anche il coniuge
+      }
+      drawChips('G'); drawChips('A'); refresh(); return;
+    }
     const a = ev.target.closest('[data-add]'); if (!a) return;
     const t = a.dataset.add, inp = $('#new' + t), name = parseMemberName(inp.value).name;
     if (!name) return inp.focus();
@@ -926,7 +958,7 @@ function vMembri() {
     return `<div class="card">
       <h2>${TYPE_LABEL[t]} <span class="muted" style="font-size:.9rem;font-weight:400">· quota ${eur(db.quote[t])}</span></h2>
       <p class="muted">${act.length} attiv${t === 'G' ? 'i' : 'e'} · hanno pagato la quota ${f.label}: <b>${np}</b> su ${act.length} (${eur(np * db.quote[t])})</p>
-      ${list.length ? `<table><tbody>${list.map(m => `<tr${m.inactive ? ' class="muted"' : ''}><td>${esc(m.name)}${m.inactive ? ' <small>(non attivo)</small>' : ''}</td>
+      ${list.length ? `<table><tbody>${list.map(m => `<tr${m.inactive ? ' class="muted"' : ''}><td>${esc(m.name)}${m.inactive ? ' <small>(non attivo)</small>' : ''}${spouseOf(m) ? `<br><small class="muted">♥ ${esc(spouseOf(m).name)}</small>` : ''}</td>
         <td class="num">${paid.has(m.id) ? '<span class="badge">✓ pagato</span>' : m.inactive ? '' : '<span class="muted">da pagare</span>'}</td>
         ${admin ? `<td class="num"><button class="small" data-edm="${m.id}">✎</button></td>` : ''}</tr>`).join('')}</tbody></table>` : '<p class="muted">Nessuno in elenco.</p>'}
       <div class="addm" style="margin-top:12px"><input id="mn${t}" placeholder="Nome e cognome" maxlength="60"><button class="small" data-madd="${t}">＋ Aggiungi ${TYPE_ONE[t].toLowerCase()}</button></div>
@@ -975,13 +1007,25 @@ function vMembri() {
     const usedIn = db.regs.filter(r => r.quote && [...(r.quote.G || []), ...(r.quote.A || [])].includes(m.id)).length;
     modal(`<h2>${esc(m.name)}</h2><p class="muted">${TYPE_ONE[m.type]} · quote registrate: ${usedIn}</p>
       <label>Nome e cognome</label><input id="emn" value="${esc(m.name)}" maxlength="60">
+      <label style="margin-top:10px">${m.type === 'G' ? 'Moglie' : 'Marito'}</label>
+      <select id="ems"><option value="auto"${m.spouseId === undefined ? ' selected' : ''}>Automatico dal cognome${m.spouseId === undefined && spouseOf(m) ? ` (${esc(spouseOf(m).name)})` : ''}</option>
+        <option value="0"${m.spouseId === 0 ? ' selected' : ''}>Nessuno</option>
+        ${db.members.filter(x => x.type !== m.type).sort((x, y) => x.name.localeCompare(y.name, 'it')).map(x => `<option value="${x.id}"${m.spouseId === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
       <label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--ink)"><input type="checkbox" id="emi" ${m.inactive ? 'checked' : ''} style="width:18px;height:18px;margin:0">Non più attivo (non compare nelle registrazioni)</label>
       <div class="msg err" id="emmsg"></div>
       <div class="actions">${usedIn ? '' : '<button class="small danger" id="emdel" style="margin-right:auto">Elimina</button>'}<button class="primary" id="emsave">Salva</button></div>`);
     $('#emsave').onclick = () => {
       const name = $('#emn').value.trim().replace(/\s+/g, ' ');
       if (!name) return $('#emmsg').textContent = 'Il nome non può essere vuoto.';
-      db.members = db.members.map(x => x.id === m.id ? { ...x, name, ...($('#emi').checked ? { inactive: true } : { inactive: undefined }) } : x);
+      const sv = $('#ems').value, oldSp = m.spouseId ? m.spouseId : null;
+      const spouseId = sv === 'auto' ? undefined : +sv;
+      db.members = db.members.map(x => {
+        if (x.id === m.id) return { ...x, name, spouseId, inactive: $('#emi').checked ? true : undefined };
+        if (spouseId && x.id === spouseId) return { ...x, spouseId: m.id };              // collegamento reciproco
+        if (oldSp && x.id === oldSp && spouseId !== oldSp) return { ...x, spouseId: undefined }; // il vecchio coniuge torna libero
+        if (spouseId && x.spouseId === spouseId) return { ...x, spouseId: undefined };    // chi era legato al nuovo coniuge viene sciolto
+        return x;
+      });
       save(); closeModal(); vMembri();
     };
     if (!usedIn) $('#emdel').onclick = () => { if (!confirm(`Eliminare ${m.name} dall’elenco?`)) return; db.members = db.members.filter(x => x.id !== m.id); save(); closeModal(); vMembri(); };

@@ -3,6 +3,11 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 4.6 – 22/11/2026
+- **Marito e moglie**: nella registrazione, toccando un Gedeone si seleziona anche la moglie (e viceversa), se non ha già
+  pagato. Per togliere, ognuno si toglie a mano. Le coppie si riconoscono dal cognome del marito in fondo al nome
+  della moglie; l'amministratore può collegarle o scollegarle a mano (Membri e quote → ✎). In elenco compare ♥ e il coniuge.
+
 ## 4.5 – 22/11/2026
 - **Avviso quote annue** a novembre e dicembre: sul Riepilogo e in Membri e quote compare l'elenco di chi
   non ha ancora pagato (Gedeoni e Ausiliarie) con l'importo da incassare; nel menu, accanto a
