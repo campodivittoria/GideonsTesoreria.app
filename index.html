@@ -133,6 +133,8 @@
   .addm { display:flex; gap:6px; } .addm input { flex:1; min-width:0; } .addm button { white-space:nowrap; }
   tr.quota td { background:#f7f9fc; }
   input[readonly].ri { background:#eef3fa; font-weight:600; }
+  nav .cnt { margin-left:auto; background:#d9a420; color:#1d2733; border-radius:10px; padding:1px 8px; font-size:.78rem; font-weight:700; }
+  #quoteAlert { margin:0 0 16px; }
   #login { max-width:360px; margin:12vh auto; }
   #updBar { position:fixed; left:12px; right:12px; bottom:12px; z-index:30; background:var(--ok); color:#fff; padding:12px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:.95rem; }
   #toast { position:fixed; left:50%; bottom:70px; transform:translateX(-50%) translateY(20px); background:#1d2733; color:#fff; padding:10px 16px; border-radius:8px; font-size:.9rem; opacity:0; pointer-events:none; transition:all .25s; z-index:40; max-width:90vw; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.25); }
@@ -190,7 +192,7 @@
 
 <script>
 // NOTA: app interamente lato browser; i dati sono salvati in localStorage di questo dispositivo.
-const VERSION = '4.4'; // aggiornare a ogni modifica (vedi VERSIONI.md)
+const VERSION = '4.5'; // aggiornare a ogni modifica (vedi VERSIONI.md)
 document.querySelectorAll('.version').forEach(el => el.textContent = 'Versione ' + VERSION);
 
 /* Controllo aggiornamenti: rilegge index.html dal server (aggiornando la copia in cache)
@@ -238,8 +240,8 @@ const COLORS = ['#1f4e8c','#1b7f4b','#d9a420','#a8323c','#2c8c9e','#6a4c93','#e0
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const eur = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
-const n2 = n => new Intl.NumberFormat('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n); // senza simbolo €
+const eur = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',useGrouping:'always'}).format(n); // sempre il punto delle migliaia (1.218,00 €)
+const n2 = n => new Intl.NumberFormat('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:'always'}).format(n); // senza simbolo €
 const fdate = d => d ? d.split('-').reverse().join('/') : '';
 const today = () => new Date().toISOString().slice(0,10);
 const round = n => Math.round(n*100)/100;
@@ -548,6 +550,7 @@ function go(v) {
   if (v === 'impost' && (session.role !== 'admin' || session.demo)) v = view = 'home';
   if (v !== 'bilancio') bilY = null;
   ({home: vHome, rendiconto: vRendiconto, bilancio: vBilancio, nota: vNota, membri: vMembri, chiusura: vChiusura, impost: vImpostazioni})[v]();
+  updateMembriBadge();
 }
 
 /* ---------- condividi ---------- */
@@ -605,6 +608,7 @@ function vHome() {
   const tot = total(b);
   $('#view').innerHTML = `
     <button class="primary bigbtn" id="newReg">＋ Nuova Registrazione</button>
+    ${quoteAlert()}
     <div class="card">
       <div class="dash">
         ${donut(b)}
@@ -620,6 +624,7 @@ function vHome() {
       <p class="muted" style="margin:4px 0 0">${(() => { const r = fyReport(currentFY()); return `Anno fiscale <b>${r.label}</b> dal ${fdate(r.from)}: ${r.regs.length} registrazion${r.regs.length === 1 ? 'e' : 'i'}, riporto ${eur(r.tot.open)}, entrate ${eur(r.tot.in)}, spese e bonifici ${eur(r.tot.out)}.`; })()}</p>
     </div>`;
   $('#newReg').onclick = () => formRegistrazione();
+  if ($('#toMembri')) $('#toMembri').onclick = () => go('membri');
 }
 
 /* ---------- popup Nuova Registrazione ---------- */
@@ -887,6 +892,31 @@ function quoteNames(r, acc) {
   return t && r.quote && r.quote[t] && r.quote[t].length ? r.quote[t].map(id => esc(memberName(id))).join(', ') : '';
 }
 
+// membri attivi che non hanno ancora pagato la quota nell'anno fiscale in corso
+function unpaidMembers() {
+  const paid = paidInFY(today());
+  return db.members.filter(m => !m.inactive && !paid.has(m.id)).sort((x, y) => x.name.localeCompare(y.name, 'it'));
+}
+// le quote si pagano a novembre e dicembre: in quei mesi l'app avvisa il tesoriere
+const quoteSeason = () => [11, 12].includes(+today().slice(5, 7));
+function quoteAlert() {
+  if (!quoteSeason()) return '';
+  const un = unpaidMembers(); if (!un.length || !db.members.length) return '';
+  const g = un.filter(m => m.type === 'G'), a = un.filter(m => m.type === 'A');
+  const list = (arr, t) => arr.length ? `<p style="margin:6px 0 0"><b>${TYPE_LABEL[t]} (${arr.length}):</b> ${arr.map(m => esc(m.name)).join(', ')}</p>` : '';
+  const due = round(g.length * db.quote.G + a.length * db.quote.A);
+  return `<div class="note warn" id="quoteAlert"><b>⚠ Quote annue ${fyOfDate(today()).label}: non hanno ancora pagato ${un.length} membr${un.length === 1 ? 'o' : 'i'}</b> (${eur(due)} da incassare). Le quote vanno pagate entro dicembre.
+    ${list(g, 'G')}${list(a, 'A')}
+    <p style="margin:8px 0 0"><button class="small" id="toMembri">Vai a Membri e quote</button></p></div>`;
+}
+function updateMembriBadge() {
+  const btn = $('#nav [data-v=membri]'); if (!btn) return;
+  let bd = btn.querySelector('.cnt'); const n = session && quoteSeason() && db.members.length ? unpaidMembers().length : 0;
+  if (!n) { if (bd) bd.remove(); return; }
+  if (!bd) { bd = document.createElement('span'); bd.className = 'cnt'; btn.appendChild(bd); }
+  bd.textContent = n; bd.title = `${n} quote da pagare`;
+}
+
 /* ---------- 4b. Membri e quote annue ---------- */
 function vMembri() {
   const admin = session.role === 'admin', f = fyOfDate(today()), paid = paidInFY(today());
@@ -903,7 +933,7 @@ function vMembri() {
       <div class="msg err" id="mm${t}"></div>
     </div>`;
   };
-  $('#view').innerHTML = `${block('G')}${block('A')}
+  $('#view').innerHTML = `${quoteAlert().replace(/<p style="margin:8px 0 0"><button class="small" id="toMembri">.*?<\/p>/s, '')}${block('G')}${block('A')}
     <div class="card"><h2>Importa elenco</h2>
       <p class="muted">Copia da Excel la colonna con i nomi (es. “Mr Mario Rossi”, “Mrs Anna Bianchi Rossi”) e incollala qui, uno per riga. “Mr” diventa Gedeone, “Mrs” Ausiliaria; i titoli vengono tolti e chi è già in elenco viene saltato.</p>
       <textarea id="imp" rows="6" placeholder="Mr Mario Rossi&#10;Mrs Anna Bianchi Rossi"></textarea>

@@ -3,6 +3,12 @@
 Il numero di versione è visibile nella pagina di accesso e in fondo al menu.
 Ogni modifica fa salire la versione di un decimo (1.1, 1.2 … 1.9, poi 2.0).
 
+## 4.5 – 22/11/2026
+- **Avviso quote annue** a novembre e dicembre: sul Riepilogo e in Membri e quote compare l'elenco di chi
+  non ha ancora pagato (Gedeoni e Ausiliarie) con l'importo da incassare; nel menu, accanto a
+  *Membri e quote*, il numero delle quote mancanti.
+- Importi sempre con il punto delle migliaia (es. 1.218,00 €) su tutti i browser.
+
 ## 4.4 – 22/11/2026
 - **Importa elenco** nella pagina Membri e quote: si incolla la colonna dei nomi dal report Excel; "Mr" diventa
   Gedeone, "Mrs" Ausiliaria, i titoli vengono tolti e i nomi già presenti saltati.
